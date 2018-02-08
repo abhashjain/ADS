@@ -75,13 +75,13 @@ void insertAvail(avail_list *a,avail_S i){
 }
 
 void printStudent(studentRecord *s){
-	printf("SID: %d, Student Name: %s, last name: %s, Major: %s\n",s->SID,s->fname,s->lname,s->major);
+	printf("DEBUG: SID: %d, Student Name: %s, last name: %s, Major: %s\n",s->SID,s->fname,s->lname,s->major);
 }
 
 void printIndexList (index_list *i){
-	printf("size is %d and used is %d\n",i->size,i->used);
+	printf("DEBUG: size is %d and used is %d\n",i->size,i->used);
 	for(int j=0;j< i->used;j++){
-		printf("Key is %d and offset is %ld\n",i->index_arr[j].key,i->index_arr[j].off);
+		printf("DEBUG:Key is %d and offset is %ld\n",i->index_arr[j].key,i->index_arr[j].off);
 	}
 }	
 
@@ -90,7 +90,7 @@ int searchIndex(index_S *i,int l,int h,int key){
 		return -1;
 	int mid = (l+h)/2;
 	if(i[mid].key == key)
-		return 1;
+		return mid;
 	else if(i[mid].key > key)
 		return searchIndex(i,l,mid-1,key);
 	else
@@ -108,9 +108,36 @@ int formattedStudent(studentRecord *s,char *record){
 	char *t = (char*) malloc(sizeof(char)*(length+11));
 	memcpy(t,record,length);
 	sprintf(record,"%010d|%s",length+11,t);
-	printf("record= %s\n",record);
+	//printf("DEBUG:record= %s\n",record);
 	return length+11;
 }
+/*
+Search Element with key if found read the content on the off and print the key otherwise give 
+Appropriate msg.
+I/P: key/SID and list and FILE pointer for student.db
+*/
+void findElement(FILE *fp, index_list *i,int key){
+	int loc = binaryIndex(i,key);
+	char *buf = (char *)malloc(sizeof(char)*LINE_MAX);
+	//studentRecord s;
+	if(loc ==-1){
+		printf("No record with SID=%d exists\n",key);
+	} else {				//Key is present,read the content from given index
+		int find = i->index_arr[loc].off;
+		//get the size of record from the offset first
+		int recSize;
+		char temp[11]; 
+		fseek(fp,find,SEEK_SET);
+		fread(temp,sizeof(char),10,fp);
+		recSize = atoi(temp);
+		fseek(fp,find+11,SEEK_SET);
+		fread(buf,sizeof(char),recSize-11,fp);
+		//printf("DEBUG: content read %s\n",buf);
+		printf("%s\n",buf);
+	}
+	free(buf);
+}
+
 int main(int argc,char *argv[]){
 	if(argc==3){
 		char *mode = argv[1];
@@ -142,7 +169,7 @@ int main(int argc,char *argv[]){
 			index.size =size;
 			index.used =used;
 			index.index_arr = tempIndex;
-			printIndexList(&index);
+			//printIndexList(&index);
 			fclose(findex);
 		}
 
@@ -158,13 +185,13 @@ int main(int argc,char *argv[]){
 				fwrite(&index.size,sizeof(int),1,fi);
 				fwrite(&index.used,sizeof(int),1,fi);
 				fwrite(index.index_arr,sizeof(index_S),index.size,fi);
-				printf("DEBUG: Number of records written is %d\n",index.size);
+				//printf("DEBUG: Number of records written is %d\n",index.size);
 				fclose(fi);
 				fclose(fstudent);
 				exit(0);			//if it is marked as end Tx then exit from program Normally
 			}else if(strcmp(ch,"add")==0){
 				ch = strtok(NULL," ");
-				printf("Look for SID %d\t",atoi(ch));
+				//printf("Look for SID %d\t",atoi(ch));
 				ch = strtok(NULL,"|");
 				s->SID = atoi(ch);
 				ch = strtok(NULL,"|");
@@ -173,7 +200,7 @@ int main(int argc,char *argv[]){
 				memcpy(s->lname,ch,NAMESIZE);
 				ch = strtok(NULL,"|");
 				memcpy(s->major,ch,NAMESIZE);
-				printStudent(s);
+				//printStudent(s);
 				if(strcmp(mode,"--first-fit")==0){
 					//Search in the list
 					if(binaryIndex(&index,s->SID)==-1){	//Record not found
@@ -182,24 +209,25 @@ int main(int argc,char *argv[]){
 						char * temp = (char*) malloc(sizeof(char)*LINE_MAX);
 						memset(temp,0,sizeof(char)*LINE_MAX);
 						int n = formattedStudent(s,temp);
-						printf("temp= %s\n",temp);
+						//printf("temp= %s\n",temp);
 						fseek(fstudent,0,SEEK_END);
 						int pos = ftell(fstudent);
-						printf("postion= %d\n",pos);
+						//printf("postion= %d\n",pos);
 						fwrite(temp,sizeof(char),n,fstudent);
 						index_S i;
 						i.key = s->SID;
 						i.off = pos;
 						insertIndex(&index,i);
-						printf("Element Inserted\n");
+						//printf("Element Inserted\n");
 					} else {		//Record is present with key in index list
-						printf("%s\n","Record with SID=key exists");
+						printf("Record with SID=%d exists\n",s->SID);
 					}
 				}
 			} else if(strcmp(ch,"find") == 0){
 				ch= strtok(NULL," ");
 				int sid = atoi(ch);
-				printf("Find with key %d\n",sid);
+				findElement(fstudent,&index,sid);			
+				//printf("Find with key %d\n",sid);
 			} else if(strcmp(ch,"del") == 0){
 				ch= strtok(NULL," ");
 				int sid = atoi(ch);
