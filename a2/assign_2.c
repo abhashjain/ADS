@@ -71,17 +71,41 @@ void insertAvail(avail_list *a,avail_S i){
 		a->size*=2;
 		a->a_arr = (avail_list *) realloc(a->a_arr,a->size*sizeof(avail_S));
 	}
-	a->a_arr[a->used++]=i;
+	int j = a->used++;
+	a->a_arr[j].size = i.size;
+	a->a_arr[j].off = i.off;
+}
+/*Compare function to sort the avail_list in ascending and descending order*/
+int comp_a(const void *a, const void *b){
+	 if(((avail_S*)a)->size > ((avail_S*)b)->size)
+		return -1;
+	 else if(((avail_S*)a)->size < ((avail_S*)b)->size)
+		return 1;
+	return 0;
 }
 
+int comp_d(){
+	 if(((avail_S*)a)->size > ((avail_S*)b)->size)
+		return 1;
+	 else if(((avail_S*)a)->size < ((avail_S*)b)->size)
+		return -1;
+	return 0;
+	
+}
 void printStudent(studentRecord *s){
 	printf("DEBUG: SID: %d, Student Name: %s, last name: %s, Major: %s\n",s->SID,s->fname,s->lname,s->major);
 }
 
 void printIndexList (index_list *i){
-	printf("DEBUG: size is %d and used is %d\n",i->size,i->used);
+	//printf("DEBUG: size is %d and used is %d\n",i->size,i->used);
 	for(int j=0;j< i->used;j++){
-		printf("DEBUG:Key is %d and offset is %ld\n",i->index_arr[j].key,i->index_arr[j].off);
+		printf("key=%d: offset=%ld\n",i->index_arr[j].key,i->index_arr[j].off);
+	}
+}	
+void printAvailList (index_list *i){
+	//printf("DEBUG: size is %d and used is %d\n",i->size,i->used);
+	for(int j=0;j< i->used;j++){
+		printf("size=%d: offset=%ld\n",i->a_arr[j].size,i->a_arr[j].off);
 	}
 }	
 
@@ -138,6 +162,44 @@ void findElement(FILE *fp, index_list *i,int key){
 	free(buf);
 }
 
+/*Load index file*/
+void loadIndex(FILE *findex,index_list *index){
+	int size = 0;
+	int used = 0; 
+	fread(&size,sizeof(int),1,findex);
+	fseek(findex,sizeof(int),SEEK_SET);
+	fread(&used,sizeof(int),1,findex);
+	fseek(findex,2*sizeof(int),SEEK_SET);
+	index_S * tempIndex = (index_S *)malloc(sizeof(index_S)*size);
+	memset(tempIndex,0,sizeof(index_S)*size);
+	fread(tempIndex,sizeof(index_S),size,findex);
+	index.size =size;
+	index.used =used;
+	index.index_arr = tempIndex;
+}
+/*Delete the given index and shift the other index to make this as continious*/
+void deleteIndex(index_list *index)
+
+/*Load Availablity list from file based on the mentioned mode*/
+void loadAvailFile(FILE *fp,char *mode,avail_list *a){
+	int size = 0;
+	int used = 0;
+	fread(&size,sizeof(int),1,fp);
+	fseek(fp,sizeof(int),SEEK_SET);
+	fread(&used,sizeof(int),1,fp);
+	fseek(fp,2*sizeof(int),SEEK_SET);
+	avail_S *temp = (avail_S *)malloc(sizeof(avail_S)*size);
+	memset(temp,0,sizeof(avail_S)*size);
+	fread(temp,sizeof(avail_S),size,fp);
+	a->size = size;
+	a->used = used;
+	a->a_arr = temp;
+	if(strcmp(mode,"--best-fit")==0){
+		qsort(a->a_arr,used,sizeof(avail_S),comp_a);
+	} else if(strcmp(mode,"--worst-fit")==0) {
+		qsort(a->a_arr,used,sizeof(avail_S),comp_d);
+	}
+}
 int main(int argc,char *argv[]){
 	if(argc==3){
 		char *mode = argv[1];
@@ -145,34 +207,31 @@ int main(int argc,char *argv[]){
 		char temp[LINE_MAX];
 		FILE *fstudent;
 		index_list index;
-		//avail_list *av;
+		avail_list av;
+		
 		char line[LINE_MAX];
 		studentRecord *s = (studentRecord*) malloc(sizeof(studentRecord));
 		memset(s,0,sizeof(studentRecord));
 		//Check for index.bin file if exists load the data in file otherwise create a new datastructure
 		FILE *findex = fopen("index.bin","rb");
+		FILE *aindex = fopen("avail.bin","rb");
 		fstudent = fopen(s_file,"ab+");
 		if(findex == NULL){
 			//File is not there Initialize it
 			initIndex(&index,5);
 		}else {
 			//read data from file and give it index_list
-			int size = 0;
-			int used = 0; 
-			fread(&size,sizeof(int),1,findex);
-			fseek(findex,sizeof(int),SEEK_SET);
-			fread(&used,sizeof(int),1,findex);
-			fseek(findex,2*sizeof(int),SEEK_SET);
-			index_S * tempIndex = (index_S *)malloc(sizeof(index_S)*size);
-			memset(tempIndex,0,sizeof(index_S)*size);
-			fread(tempIndex,sizeof(index_S),size,findex);
-			index.size =size;
-			index.used =used;
-			index.index_arr = tempIndex;
 			//printIndexList(&index);
+			loadIndex(findex,&index);
 			fclose(findex);
 		}
-
+		if(aindex ==NULL){
+			initAvail(&av,5);
+		} else {
+			//Based on the mode specified in argument load the file into DS
+			loadAvailFile(aindex,mode,&av);
+			fclose(aindex);
+		}
 		while(fgets(line,LINE_MAX,stdin)!=NULL){
 			memcpy(temp,line,LINE_MAX);
 			//printf("Read : '%s'\n",line);
