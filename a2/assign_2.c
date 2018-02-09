@@ -99,13 +99,29 @@ void insertAvail(avail_list *a,avail_S i,char *mode){
 		a->avail_arr[temp+1].off =i.off;
 	}
 }
+/*Get total Hole size*/
+long holeSize(avail_list *a){
+	long size = 0;
+	int i=0;
+	for (;i<a->used;a++){
+		size+=a->a_arr[i].size;
+	}
+	return size;
+}
+
 /*Compare function to sort the avail_list in ascending and descending order*/
 int comp_a(const void *a, const void *b){
 	 if(((avail_S*)a)->size > ((avail_S*)b)->size)
 		return -1;
 	 else if(((avail_S*)a)->size < ((avail_S*)b)->size)
 		return 1;
-	return 0;
+	 else{
+	 	if(((avail_S*)a)->off > ((avail_S*)b)->off)
+			return -1;
+	 	else if(((avail_S*)a)->off < ((avail_S*)b)->off)
+			return 1;
+		return 0;
+	}
 }
 
 int comp_d(const void *a, const void *b){
@@ -113,8 +129,13 @@ int comp_d(const void *a, const void *b){
 		return 1;
 	 else if(((avail_S*)a)->size < ((avail_S*)b)->size)
 		return -1;
-	return 0;
-	
+	 else{
+	 	if(((avail_S*)a)->off > ((avail_S*)b)->off)
+			return -1;
+	 	else if(((avail_S*)a)->off < ((avail_S*)b)->off)
+			return 1;
+		return 0;
+	}
 }
 void printStudent(studentRecord *s){
 	printf("DEBUG: SID: %d, Student Name: %s, last name: %s, Major: %s\n",s->SID,s->fname,s->lname,s->major);
@@ -126,7 +147,7 @@ void printIndexList (index_list *i){
 		printf("key=%d: offset=%ld\n",i->index_arr[j].key,i->index_arr[j].off);
 	}
 }	
-void printAvailList (index_list *i){
+void printAvailList (avail_list *i){
 	//printf("DEBUG: size is %d and used is %d\n",i->size,i->used);
 	for(int j=0;j< i->used;j++){
 		printf("size=%d: offset=%ld\n",i->a_arr[j].size,i->a_arr[j].off);
@@ -228,11 +249,45 @@ void deleteRecord(File *fp,index_list *i,avail_list *a,int key,char *mode){
 		temp.off = find;
 		//Insert a entry in avail_list with offset and recSize
 		insertAvail(a,temp,mode);
+		deleteIndex(i,loc);
 	}
+}
+/*utility function to get index of avail_list based on the size and mode
+	if -1 - No specific hole is there*/
+int locationFinder(avail_list *a,int size,char *mode){
+	
 }
 
 
-
+/*Add a new record
+FP is student file descriptor
+*/
+void addRecord(File *fp,char *mode, index_list *i, avail_list *a,studentRecord *s){
+	char * temp = (char*) malloc(sizeof(char)*LINE_MAX);
+	memset(temp,0,sizeof(char)*LINE_MAX);
+	int n = formattedStudent(s,temp);
+	int loc = -1,j=0;
+	//Based on the mode finalize your location where is your seek to add the record
+	if(strcmp(mode,"--first-fit")==0){
+		if(a->used != 0){  //Free space in avail list
+			//look for correct size hole by doing linear search
+			while(j < a->used){
+				
+			}
+		}
+	} else if(strcmp(mode,"--best-fit")==0) {
+		
+	} else if(strcmp(mode,"--worst-fit")==0){
+	
+	}
+	fseek(fp,0,SEEK_END);
+	int pos = ftell(fp);
+	fwrite(temp,sizeof(char),n,fp);
+	index_S i;
+	i.key = s->SID;
+	i.off = pos;
+	insertIndex(&index,i);
+}
 /*Load index file*/
 void loadIndex(FILE *findex,index_list *index){
 	int size = 0;
@@ -269,6 +324,8 @@ void loadAvailFile(FILE *fp,char *mode,avail_list *a){
 		qsort(a->a_arr,used,sizeof(avail_S),comp_d);
 	}
 }
+
+
 int main(int argc,char *argv[]){
 	if(argc==3){
 		char *mode = argv[1];
@@ -276,8 +333,7 @@ int main(int argc,char *argv[]){
 		char temp[LINE_MAX];
 		FILE *fstudent;
 		index_list index;
-		avail_list av;
-		
+		avail_list av;		
 		char line[LINE_MAX];
 		studentRecord *s = (studentRecord*) malloc(sizeof(studentRecord));
 		memset(s,0,sizeof(studentRecord));
@@ -307,15 +363,27 @@ int main(int argc,char *argv[]){
 			//printf("Length is %d\n",strlen(line));
 			char *ch = strtok(temp," ");
 			if(strcmp(ch,"end\n")==0){
-				//before ending save the content of index in index.bin
+				//before ending save the content of index in index.bin and avail.bin
 				remove("index.bin");
+				remove("avail.bin");
 				FILE *fi = fopen("index.bin","wb");
+				FILE *fa = fopen("avail.bin","wb");
 				fwrite(&index.size,sizeof(int),1,fi);
 				fwrite(&index.used,sizeof(int),1,fi);
 				fwrite(index.index_arr,sizeof(index_S),index.size,fi);
 				//printf("DEBUG: Number of records written is %d\n",index.size);
+				//Print the avail and index list and size and hole count
+				printf("Index:\n");
+				printIndexList(index);
+				printf("Availability:\n");
+				printAvailList(av);
+				printf("Number of holes: %d\n",av->used);
+				printf("Hole space: %ld\n",holeSize(av));
 				fclose(fi);
+				fclose(fa)
 				fclose(fstudent);
+				free(index);
+				free(av);
 				exit(0);			//if it is marked as end Tx then exit from program Normally
 			}else if(strcmp(ch,"add")==0){
 				ch = strtok(NULL," ");
@@ -329,27 +397,12 @@ int main(int argc,char *argv[]){
 				ch = strtok(NULL,"|");
 				memcpy(s->major,ch,NAMESIZE);
 				//printStudent(s);
-				if(strcmp(mode,"--first-fit")==0){
-					//Search in the list
-					if(binaryIndex(&index,s->SID)==-1){	//Record not found
-						//add a new record and write it into the index found by avail list or at the end
-						//TODO: Check for the avail list before adding
-						char * temp = (char*) malloc(sizeof(char)*LINE_MAX);
-						memset(temp,0,sizeof(char)*LINE_MAX);
-						int n = formattedStudent(s,temp);
-						//printf("temp= %s\n",temp);
-						fseek(fstudent,0,SEEK_END);
-						int pos = ftell(fstudent);
-						//printf("postion= %d\n",pos);
-						fwrite(temp,sizeof(char),n,fstudent);
-						index_S i;
-						i.key = s->SID;
-						i.off = pos;
-						insertIndex(&index,i);
-						//printf("Element Inserted\n");
-					} else {		//Record is present with key in index list
-						printf("Record with SID=%d exists\n",s->SID);
-					}
+				//add a record with specified strategy
+				if(binaryIndex(&index,s->SID)==-1){	//Record not found
+					addRecord(fstudent,mode,index,av,s);	
+				} else {		//Record is present with key in index list
+					printf("Record with SID=%d exists\n",s->SID);
+				}
 				}
 			} else if(strcmp(ch,"find") == 0){
 				ch= strtok(NULL," ");
@@ -359,7 +412,8 @@ int main(int argc,char *argv[]){
 			} else if(strcmp(ch,"del") == 0){
 				ch= strtok(NULL," ");
 				int sid = atoi(ch);
-				printf("delete with key %d\n",sid);
+				//printf("delete with key %d\n",sid);
+				deleteRecord(fstudent,index,av,sid,mode);
 			} else {
 				printf("Unknown Option\n");
 			}
