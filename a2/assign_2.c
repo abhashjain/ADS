@@ -66,14 +66,38 @@ void initAvail(avail_list *a,int size){
 	a->size =size;
 }
 
-void insertAvail(avail_list *a,avail_S i){
+void insertAvail(avail_list *a,avail_S i,char *mode){
 	if(a->size == a->used){
 		a->size*=2;
 		a->a_arr = (avail_list *) realloc(a->a_arr,a->size*sizeof(avail_S));
 	}
-	int j = a->used++;
-	a->a_arr[j].size = i.size;
-	a->a_arr[j].off = i.off;
+	if(strcmp(mode,"--first-fit")==0){
+		int j = a->used++;
+		a->a_arr[j].size = i.size;
+		a->a_arr[j].off = i.off;	
+	} else if(strcmp(mode,"--best-fit")==0){
+		//Add in ascending order of size
+		int temp = a->used -1;
+		while (i.size < a->avail_arr[temp+1].size && temp>=0){
+			a->avail_arr[temp+1].size = a->avail_arr[temp].size;
+			a->avail_arr[temp+1].offset = a->avail_arr[temp.off];
+			temp--;
+		}
+		a->used++;
+		a->avail_arr[temp+1].size  = i.size;
+		a->avail_arr[temp+1].off =i.off;
+	} else if(strcmp(mode,"--worst-fit")==0){
+		//add in descending order of size
+		int temp = a->used -1;
+		while (i.size > a->avail_arr[temp+1].size && temp>=0){
+			a->avail_arr[temp+1].size = a->avail_arr[temp].size;
+			a->avail_arr[temp+1].offset = a->avail_arr[temp.off];
+			temp--;
+		}
+		a->used++;
+		a->avail_arr[temp+1].size  = i.size;
+		a->avail_arr[temp+1].off =i.off;
+	}
 }
 /*Compare function to sort the avail_list in ascending and descending order*/
 int comp_a(const void *a, const void *b){
@@ -84,7 +108,7 @@ int comp_a(const void *a, const void *b){
 	return 0;
 }
 
-int comp_d(){
+int comp_d(const void *a, const void *b){
 	 if(((avail_S*)a)->size > ((avail_S*)b)->size)
 		return 1;
 	 else if(((avail_S*)a)->size < ((avail_S*)b)->size)
@@ -135,6 +159,29 @@ int formattedStudent(studentRecord *s,char *record){
 	//printf("DEBUG:record= %s\n",record);
 	return length+11;
 }
+/*Delete: Delete the Node from index List*/
+/*Delete the given index and shift the other index to make this as continious*/
+void deleteIndex (index_list *index, int i){
+	int j=0;
+	for(j=0;j<index->used;j++){
+		index->index_arr[i].key = index->index_arr[j].key;
+		index->index_arr[i].off = index->index_arr[j].off;
+		i=j;
+	}
+	index->used--;
+}
+/*Delete: Delete the Node from avail List*/
+/*Delete the given index and shift the other index to make this as continious*/
+void deleteIndex (avail_list *index, int i){
+	int j=0;
+	for(j=0;j<index->used;j++){
+		index-avail_arr[i].size = index->avail_arr[j].size;
+		index->avail_arr[i].off = index->index_arr[j].off;
+		i=j;
+	}
+	index->used--;
+}
+
 /*
 Search Element with key if found read the content on the off and print the key otherwise give 
 Appropriate msg.
@@ -162,6 +209,30 @@ void findElement(FILE *fp, index_list *i,int key){
 	free(buf);
 }
 
+/*deleteRecord
+	Mode is require to arrange the avail list*/
+void deleteRecord(File *fp,index_list *i,avail_list *a,int key,char *mode){
+	//look for key
+	int loc = binaryIndex(i,key);
+	if(loc == 1)
+		printf("No record with SID=%d exists\n",key);
+	else{
+		int find = i->index_arr[loc].off;
+		int recSize;
+		char temp[11];
+		fseek(fp,find,SEEK_SET);
+		fread(temp,sizeof(char),10,fp);
+		recSize = atoi(temp);
+		avail_S temp;
+		temp.size = recSize;
+		temp.off = find;
+		//Insert a entry in avail_list with offset and recSize
+		insertAvail(a,temp,mode);
+	}
+}
+
+
+
 /*Load index file*/
 void loadIndex(FILE *findex,index_list *index){
 	int size = 0;
@@ -177,8 +248,6 @@ void loadIndex(FILE *findex,index_list *index){
 	index.used =used;
 	index.index_arr = tempIndex;
 }
-/*Delete the given index and shift the other index to make this as continious*/
-void deleteIndex(index_list *index)
 
 /*Load Availablity list from file based on the mentioned mode*/
 void loadAvailFile(FILE *fp,char *mode,avail_list *a){
