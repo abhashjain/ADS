@@ -71,6 +71,12 @@ void insertAvail(avail_list *a,avail_S i,char *mode){
 		a->size*=2;
 		a->a_arr = (avail_list *) realloc(a->a_arr,a->size*sizeof(avail_S));
 	}
+	if(a->used == 0){
+		int j = a->used++;
+		a->a_arr[j].size = i.size;
+		a->a_arr[j].off = i.off;	
+		return;
+	}
 	if(strcmp(mode,"--first-fit")==0){
 		int j = a->used++;
 		a->a_arr[j].size = i.size;
@@ -143,13 +149,15 @@ void printStudent(studentRecord *s){
 
 void printIndexList (index_list *i){
 	//printf("DEBUG: size is %d and used is %d\n",i->size,i->used);
-	for(int j=0;j< i->used;j++){
+	int j;
+	for(j=0;j< i->used;j++){
 		printf("key=%d: offset=%ld\n",i->index_arr[j].key,i->index_arr[j].off);
 	}
 }	
 void printAvailList (avail_list *i){
 	//printf("DEBUG: size is %d and used is %d\n",i->size,i->used);
-	for(int j=0;j< i->used;j++){
+	int j;
+	for(j=0;j< i->used;j++){
 		printf("size=%d: offset=%ld\n",i->a_arr[j].size,i->a_arr[j].off);
 	}
 }	
@@ -169,16 +177,26 @@ int searchIndex(index_S *i,int l,int h,int key){
 int binaryIndex(index_list *i,int key){
 	return searchIndex(i->index_arr,0,i->used,key);
 }
+//count digits
+int countDigits(int n){
+	int c=0;
+	while(n!=0){
+		n/=10;
+		c++;
+	}
+	return c;
+}
 
 //Get formatted student record to write in student.db
 int formattedStudent(studentRecord *s,char *record){
 	sprintf(record,"%d|%s|%s|%s",s->SID,s->fname,s->lname,s->major);
 	int length = strlen(record);
-	char *t = (char*) malloc(sizeof(char)*(length+11));
+	int finalLength = length + countDigits(length)+1;
+	char *t = (char*) malloc(sizeof(char)*(finalLength));
 	memcpy(t,record,length);
-	sprintf(record,"%010d|%s",length+11,t);
+	sprintf(record,"%d|%s",finalLength,t);
 	//printf("DEBUG:record= %s\n",record);
-	return length+11;
+	return finalLength;
 }
 /*Delete: Delete the Node from index List*/
 /*Delete the given index and shift the other index to make this as continious*/
@@ -218,12 +236,15 @@ void findElement(FILE *fp, index_list *i,int key){
 		int find = i->index_arr[loc].off;
 		//get the size of record from the offset first
 		int recSize;
-		char temp[11]; 
+		char temp[12],*t; 
 		fseek(fp,find,SEEK_SET);
-		fread(temp,sizeof(char),10,fp);
-		recSize = atoi(temp);
-		fseek(fp,find+11,SEEK_SET);
-		fread(buf,sizeof(char),recSize-11,fp);
+		fread(temp,sizeof(char),11,fp);
+		t = strtok(temp,"|");
+		recSize = atoi(t);
+		int digit = countDigits(recSize);
+		recSize = recSize - (digit+1);
+		fseek(fp,find+digit+1,SEEK_SET);
+		fread(buf,sizeof(char),recSize,fp);
 		//printf("DEBUG: content read %s\n",buf);
 		printf("%s",buf);
 	}
@@ -240,10 +261,11 @@ void deleteRecord(FILE *fp,index_list *i,avail_list *a,int key,char *mode){
 	else{
 		int find = i->index_arr[loc].off;
 		int recSize;
-		char temp[11];
+		char temp[12],*t;
 		fseek(fp,find,SEEK_SET);
-		fread(temp,sizeof(char),10,fp);
-		recSize = atoi(temp);
+		fread(temp,sizeof(char),11,fp);
+		t = strtok(temp,"|");
+		recSize = atoi(t);
 		avail_S te;
 		te.size = recSize;
 		te.off = find;
@@ -255,7 +277,7 @@ void deleteRecord(FILE *fp,index_list *i,avail_list *a,int key,char *mode){
 /*utility function to get index of avail_list based on the size and mode
 	if -1 - No specific hole is there*/
 int locationFinder(avail_list *a,int size,char *mode){
-	
+	return 0;
 }
 
 
@@ -266,7 +288,7 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 	char * temp = (char*) malloc(sizeof(char)*LINE_MAX);
 	memset(temp,0,sizeof(char)*LINE_MAX);
 	int n = formattedStudent(s,temp);
-	int loc = -1,j=0,pos,remain;
+	int j=0,pos,remain;
 	index_S ind;
 	avail_S a_l;
 	//Based on the mode finalize your location where is your seek to add the record
@@ -274,8 +296,8 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 		if(a->used != 0){  //Free space in avail list
 			//look for correct size hole by doing linear search
 			while(j < a->used){
-				if(a->a_arr[j].size > n){
-					fseek(fp,0,SEEK_END);
+				if(a->a_arr[j].size >= n){
+					fseek(fp,a->a_arr[j].off,SEEK_SET);
 					pos = ftell(fp);
 					fwrite(temp,sizeof(char),n,fp);
 					ind.key = s->SID;
@@ -297,9 +319,49 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 			}
 		}
 	} else if(strcmp(mode,"--best-fit")==0) {
-		
+		if(a->used!=0){
+			while(j < a->used){
+				if(a->a_arr[j].size >= n){
+					fseek(fp,a->a_arr[j].off,SEEK_SET);
+					pos = ftell(fp);
+					fwrite(temp,sizeof(char),n,fp);
+					ind.key = s->SID;
+					ind.off = pos;
+					insertIndex(i,ind);
+					remain = a->a_arr[j].size - n;
+					if(n>0){
+						a_l.size = remain;
+						a_l.off = a->a_arr[j].off+n;
+						insertAvail(a,a_l,mode);
+					}
+					deleteAvail(a,j);
+					return;
+				} else {
+					j++;
+					continue;
+				}
+			}
+		}	
 	} else if(strcmp(mode,"--worst-fit")==0){
-	
+		if(a->used!=0){
+			if(a->a_arr[0].size > n){
+				fseek(fp,a->a_arr[0].off,SEEK_SET);
+				pos = ftell(fp);
+				fwrite(temp,sizeof(char),n,fp);
+				ind.key = s->SID;
+				ind.off = pos;
+				insertIndex(i,ind);
+				remain = a->a_arr[j].size - n;
+				if(n>0){
+					a_l.size = remain;
+					a_l.off = a->a_arr[j].off+n;
+					insertAvail(a,a_l,mode);
+				}
+				deleteAvail(a,j);
+				return;
+			}
+		}	
+
 	}
 	fseek(fp,0,SEEK_END);
 	pos = ftell(fp);
@@ -370,7 +432,7 @@ int main(int argc,char *argv[]){
 			loadIndex(findex,&index);
 			fclose(findex);
 		}
-		if(aindex ==NULL){
+		if(aindex == NULL){
 			initAvail(&av,5);
 		} else {
 			//Based on the mode specified in argument load the file into DS
@@ -393,6 +455,9 @@ int main(int argc,char *argv[]){
 				fwrite(index.index_arr,sizeof(index_S),index.size,fi);
 				//printf("DEBUG: Number of records written is %d\n",index.size);
 				//Print the avail and index list and size and hole count
+				fwrite(&av.size,sizeof(int),1,fa);
+				fwrite(&av.used,sizeof(int),1,fa);
+				fwrite(av.a_arr,sizeof(avail_S),av.size,fa);
 				printf("Index:\n");
 				printIndexList(&index);
 				printf("Availability:\n");
@@ -420,8 +485,8 @@ int main(int argc,char *argv[]){
 				//add a record with specified strategy
 				if(binaryIndex(&index,s->SID)==-1){	//Record not found
 					addRecord(fstudent,mode,&index,&av,s);	
-					printIndexList(&index);
-					printf("D1:\n");
+					//printAvailList(&av);
+					//printf("D1:\n");
 				} else {		//Record is present with key in index list
 					printf("Record with SID=%d exists\n",s->SID);
 				}
@@ -435,8 +500,8 @@ int main(int argc,char *argv[]){
 				int sid = atoi(ch);
 				//printf("delete with key %d\n",sid);
 				deleteRecord(fstudent,&index,&av,sid,mode);
-				printIndexList(&index);
-				printf("D2:\n");
+				//printAvailList(&av);
+				//printf("D2:\n");
 			} else {
 				printf("Unknown Option\n");
 			}
