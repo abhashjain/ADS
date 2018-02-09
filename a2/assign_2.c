@@ -103,7 +103,7 @@ void insertAvail(avail_list *a,avail_S i,char *mode){
 long holeSize(avail_list *a){
 	long size = 0;
 	int i=0;
-	for (;i<a->used;a++){
+	for (;i<a->used;i++){
 		size+=a->a_arr[i].size;
 	}
 	return size;
@@ -183,8 +183,8 @@ int formattedStudent(studentRecord *s,char *record){
 /*Delete: Delete the Node from index List*/
 /*Delete the given index and shift the other index to make this as continious*/
 void deleteIndex (index_list *index, int i){
-	int j=0;
-	for(j=0;j<index->used;j++){
+	int j;
+	for(j=i;j<index->used;j++){
 		index->index_arr[i].key = index->index_arr[j].key;
 		index->index_arr[i].off = index->index_arr[j].off;
 		i=j;
@@ -194,8 +194,8 @@ void deleteIndex (index_list *index, int i){
 /*Delete: Delete the Node from avail List*/
 /*Delete the given index and shift the other index to make this as continious*/
 void deleteAvail (avail_list *index, int i){
-	int j=0;
-	for(j=0;j<index->used;j++){
+	int j;
+	for(j=i;j<index->used;j++){
 		index->a_arr[i].size = index->a_arr[j].size;
 		index->a_arr[i].off = index->a_arr[j].off;
 		i=j;
@@ -225,7 +225,7 @@ void findElement(FILE *fp, index_list *i,int key){
 		fseek(fp,find+11,SEEK_SET);
 		fread(buf,sizeof(char),recSize-11,fp);
 		//printf("DEBUG: content read %s\n",buf);
-		printf("%s\n",buf);
+		printf("%s",buf);
 	}
 	free(buf);
 }
@@ -235,7 +235,7 @@ void findElement(FILE *fp, index_list *i,int key){
 void deleteRecord(FILE *fp,index_list *i,avail_list *a,int key,char *mode){
 	//look for key
 	int loc = binaryIndex(i,key);
-	if(loc == 1)
+	if(loc == -1)
 		printf("No record with SID=%d exists\n",key);
 	else{
 		int find = i->index_arr[loc].off;
@@ -280,7 +280,7 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 					fwrite(temp,sizeof(char),n,fp);
 					ind.key = s->SID;
 					ind.off = pos;
-					insertIndex(&index,ind);
+					insertIndex(i,ind);
 					remain = a->a_arr[j].size - n;
 					if(n>0){
 						a_l.size = remain;
@@ -306,7 +306,7 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 	fwrite(temp,sizeof(char),n,fp);
 	ind.key = s->SID;
 	ind.off = pos;
-	insertIndex(&index,ind);
+	insertIndex(i,ind);
 }
 /*Load index file*/
 void loadIndex(FILE *findex,index_list *index){
@@ -402,8 +402,8 @@ int main(int argc,char *argv[]){
 				fclose(fi);
 				fclose(fa);
 				fclose(fstudent);
-				free(index.index_arr);
-				free(av.a_arr);
+				//free(index.index_arr);
+				//free(av.a_arr);
 				exit(0);			//if it is marked as end Tx then exit from program Normally
 			}else if(strcmp(ch,"add")==0){
 				ch = strtok(NULL," ");
@@ -420,19 +420,23 @@ int main(int argc,char *argv[]){
 				//add a record with specified strategy
 				if(binaryIndex(&index,s->SID)==-1){	//Record not found
 					addRecord(fstudent,mode,&index,&av,s);	
+					printIndexList(&index);
+					printf("D1:\n");
 				} else {		//Record is present with key in index list
 					printf("Record with SID=%d exists\n",s->SID);
 				}
 			} else if(strcmp(ch,"find") == 0){
 				ch= strtok(NULL," ");
 				int sid = atoi(ch);
-				findElement(fstudent,&index,sid);			
+				findElement(fstudent,&index,sid);
 				//printf("Find with key %d\n",sid);
 			} else if(strcmp(ch,"del") == 0){
 				ch= strtok(NULL," ");
 				int sid = atoi(ch);
 				//printf("delete with key %d\n",sid);
 				deleteRecord(fstudent,&index,&av,sid,mode);
+				printIndexList(&index);
+				printf("D2:\n");
 			} else {
 				printf("Unknown Option\n");
 			}
