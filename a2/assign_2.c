@@ -78,25 +78,25 @@ void insertAvail(avail_list *a,avail_S i,char *mode){
 	} else if(strcmp(mode,"--best-fit")==0){
 		//Add in ascending order of size
 		int temp = a->used -1;
-		while (i.size < a->avail_arr[temp+1].size && temp>=0){
-			a->avail_arr[temp+1].size = a->avail_arr[temp].size;
-			a->avail_arr[temp+1].offset = a->avail_arr[temp.off];
+		while (i.size < a->a_arr[temp+1].size && temp>=0){
+			a->a_arr[temp+1].size = a->a_arr[temp].size;
+			a->a_arr[temp+1].off = a->a_arr[temp].off;
 			temp--;
 		}
 		a->used++;
-		a->avail_arr[temp+1].size  = i.size;
-		a->avail_arr[temp+1].off =i.off;
+		a->a_arr[temp+1].size  = i.size;
+		a->a_arr[temp+1].off =i.off;
 	} else if(strcmp(mode,"--worst-fit")==0){
 		//add in descending order of size
 		int temp = a->used -1;
-		while (i.size > a->avail_arr[temp+1].size && temp>=0){
-			a->avail_arr[temp+1].size = a->avail_arr[temp].size;
-			a->avail_arr[temp+1].offset = a->avail_arr[temp.off];
+		while (i.size > a->a_arr[temp+1].size && temp>=0){
+			a->a_arr[temp+1].size = a->a_arr[temp].size;
+			a->a_arr[temp+1].off = a->a_arr[temp].off;
 			temp--;
 		}
 		a->used++;
-		a->avail_arr[temp+1].size  = i.size;
-		a->avail_arr[temp+1].off =i.off;
+		a->a_arr[temp+1].size  = i.size;
+		a->a_arr[temp+1].off =i.off;
 	}
 }
 /*Get total Hole size*/
@@ -193,11 +193,11 @@ void deleteIndex (index_list *index, int i){
 }
 /*Delete: Delete the Node from avail List*/
 /*Delete the given index and shift the other index to make this as continious*/
-void deleteIndex (avail_list *index, int i){
+void deleteAvail (avail_list *index, int i){
 	int j=0;
 	for(j=0;j<index->used;j++){
-		index-avail_arr[i].size = index->avail_arr[j].size;
-		index->avail_arr[i].off = index->index_arr[j].off;
+		index->a_arr[i].size = index->a_arr[j].size;
+		index->a_arr[i].off = index->a_arr[j].off;
 		i=j;
 	}
 	index->used--;
@@ -232,7 +232,7 @@ void findElement(FILE *fp, index_list *i,int key){
 
 /*deleteRecord
 	Mode is require to arrange the avail list*/
-void deleteRecord(File *fp,index_list *i,avail_list *a,int key,char *mode){
+void deleteRecord(FILE *fp,index_list *i,avail_list *a,int key,char *mode){
 	//look for key
 	int loc = binaryIndex(i,key);
 	if(loc == 1)
@@ -244,11 +244,11 @@ void deleteRecord(File *fp,index_list *i,avail_list *a,int key,char *mode){
 		fseek(fp,find,SEEK_SET);
 		fread(temp,sizeof(char),10,fp);
 		recSize = atoi(temp);
-		avail_S temp;
-		temp.size = recSize;
-		temp.off = find;
+		avail_S te;
+		te.size = recSize;
+		te.off = find;
 		//Insert a entry in avail_list with offset and recSize
-		insertAvail(a,temp,mode);
+		insertAvail(a,te,mode);
 		deleteIndex(i,loc);
 	}
 }
@@ -262,17 +262,38 @@ int locationFinder(avail_list *a,int size,char *mode){
 /*Add a new record
 FP is student file descriptor
 */
-void addRecord(File *fp,char *mode, index_list *i, avail_list *a,studentRecord *s){
+void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *s){
 	char * temp = (char*) malloc(sizeof(char)*LINE_MAX);
 	memset(temp,0,sizeof(char)*LINE_MAX);
 	int n = formattedStudent(s,temp);
-	int loc = -1,j=0;
+	int loc = -1,j=0,pos,remain;
+	index_S ind;
+	avail_S a_l;
 	//Based on the mode finalize your location where is your seek to add the record
 	if(strcmp(mode,"--first-fit")==0){
 		if(a->used != 0){  //Free space in avail list
 			//look for correct size hole by doing linear search
 			while(j < a->used){
-				
+				if(a->a_arr[j].size > n){
+					fseek(fp,0,SEEK_END);
+					pos = ftell(fp);
+					fwrite(temp,sizeof(char),n,fp);
+					ind.key = s->SID;
+					ind.off = pos;
+					insertIndex(&index,ind);
+					remain = a->a_arr[j].size - n;
+					if(n>0){
+						a_l.size = remain;
+						a_l.off = a->a_arr[j].off+n;							
+						insertAvail(a,a_l,mode);
+					}
+					//TODO: Possible place for bug
+					deleteAvail(a,j);
+					return;		
+				} else {
+					j++;
+					continue;
+				}
 			}
 		}
 	} else if(strcmp(mode,"--best-fit")==0) {
@@ -281,12 +302,11 @@ void addRecord(File *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 	
 	}
 	fseek(fp,0,SEEK_END);
-	int pos = ftell(fp);
+	pos = ftell(fp);
 	fwrite(temp,sizeof(char),n,fp);
-	index_S i;
-	i.key = s->SID;
-	i.off = pos;
-	insertIndex(&index,i);
+	ind.key = s->SID;
+	ind.off = pos;
+	insertIndex(&index,ind);
 }
 /*Load index file*/
 void loadIndex(FILE *findex,index_list *index){
@@ -299,9 +319,9 @@ void loadIndex(FILE *findex,index_list *index){
 	index_S * tempIndex = (index_S *)malloc(sizeof(index_S)*size);
 	memset(tempIndex,0,sizeof(index_S)*size);
 	fread(tempIndex,sizeof(index_S),size,findex);
-	index.size =size;
-	index.used =used;
-	index.index_arr = tempIndex;
+	index->size =size;
+	index->used =used;
+	index->index_arr = tempIndex;
 }
 
 /*Load Availablity list from file based on the mentioned mode*/
@@ -374,16 +394,16 @@ int main(int argc,char *argv[]){
 				//printf("DEBUG: Number of records written is %d\n",index.size);
 				//Print the avail and index list and size and hole count
 				printf("Index:\n");
-				printIndexList(index);
+				printIndexList(&index);
 				printf("Availability:\n");
-				printAvailList(av);
-				printf("Number of holes: %d\n",av->used);
-				printf("Hole space: %ld\n",holeSize(av));
+				printAvailList(&av);
+				printf("Number of holes: %d\n",av.used);
+				printf("Hole space: %ld\n",holeSize(&av));
 				fclose(fi);
-				fclose(fa)
+				fclose(fa);
 				fclose(fstudent);
-				free(index);
-				free(av);
+				free(index.index_arr);
+				free(av.a_arr);
 				exit(0);			//if it is marked as end Tx then exit from program Normally
 			}else if(strcmp(ch,"add")==0){
 				ch = strtok(NULL," ");
@@ -399,10 +419,9 @@ int main(int argc,char *argv[]){
 				//printStudent(s);
 				//add a record with specified strategy
 				if(binaryIndex(&index,s->SID)==-1){	//Record not found
-					addRecord(fstudent,mode,index,av,s);	
+					addRecord(fstudent,mode,&index,&av,s);	
 				} else {		//Record is present with key in index list
 					printf("Record with SID=%d exists\n",s->SID);
-				}
 				}
 			} else if(strcmp(ch,"find") == 0){
 				ch= strtok(NULL," ");
@@ -413,7 +432,7 @@ int main(int argc,char *argv[]){
 				ch= strtok(NULL," ");
 				int sid = atoi(ch);
 				//printf("delete with key %d\n",sid);
-				deleteRecord(fstudent,index,av,sid,mode);
+				deleteRecord(fstudent,&index,&av,sid,mode);
 			} else {
 				printf("Unknown Option\n");
 			}
