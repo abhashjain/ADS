@@ -20,3 +20,5 @@ echo "worst test case" >>final.txt
 diff o.txt output-01-worst.txt >> final.txt
 ./a  --worst-fit student.db < input-02.txt > o.txt
 diff o.txt output-02-worst.txt >> final.txt
+rm o.txt
+cat final.txt
