@@ -42,7 +42,7 @@ typedef struct {
 }studentRecord;
 
 void initIndex(index_list* ind,int size){
-	ind->index_arr = (index_list*) malloc(size*sizeof(index_S));
+	ind->index_arr = (index_S*) malloc(size*sizeof(index_S));
 	memset(ind->index_arr,0,size*sizeof(index_S));
 	ind->used=0; 
 	ind->size = size;
@@ -51,7 +51,7 @@ void initIndex(index_list* ind,int size){
 void insertIndex(index_list *ind,index_S i){
 	if(ind->size == ind->used){
 		ind->size*=2;
-		ind->index_arr = (index_list*)realloc(ind->index_arr,ind->size*sizeof(index_S));
+		ind->index_arr = (index_S*)realloc(ind->index_arr,ind->size*sizeof(index_S));
 	}
 	int temp = ind->used - 1;
 	while(i.key < ind->index_arr[temp].key && temp>=0){
@@ -65,7 +65,7 @@ void insertIndex(index_list *ind,index_S i){
 }
 
 void initAvail(avail_list *a,int size){
-	a->a_arr = (avail_list *) malloc(size*sizeof(avail_S));
+	a->a_arr = (avail_S*) malloc(size*sizeof(avail_S));
 	a->used =0;
 	a->size =size;
 }
@@ -73,7 +73,7 @@ void initAvail(avail_list *a,int size){
 void insertAvail(avail_list *a,avail_S i,char *mode){
 	if(a->size == a->used){
 		a->size*=2;
-		a->a_arr = (avail_list *) realloc(a->a_arr,a->size*sizeof(avail_S));
+		a->a_arr = (avail_S*) realloc(a->a_arr,a->size*sizeof(avail_S));
 	}
 	if(a->used == 0){
 		int j = a->used++;
