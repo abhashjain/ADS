@@ -1,3 +1,7 @@
+/*HW2- CSC548
+Author - ajain28 ,ABHASH JAIN
+*/
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<limits.h>
@@ -193,9 +197,11 @@ int formattedStudent(studentRecord *s,char *record){
 	int length = strlen(record);
 	int finalLength = length + countDigits(length)+1;
 	char *t = (char*) malloc(sizeof(char)*(finalLength));
+	memset(t,0,(sizeof(char)*finalLength));
 	memcpy(t,record,length);
 	sprintf(record,"%d|%s",finalLength,t);
 	//printf("DEBUG:record= %s\n",record);
+	free(t);
 	return finalLength;
 }
 /*Delete: Delete the Node from index List*/
@@ -374,6 +380,7 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 	ind.key = s->SID;
 	ind.off = pos;
 	insertIndex(i,ind);
+	free(temp);
 }
 /*Load index file*/
 void loadIndex(FILE *findex,index_list *index){
@@ -420,7 +427,11 @@ int main(int argc,char *argv[]){
 		char temp[LINE_MAX];
 		FILE *fstudent;
 		index_list index;
-		avail_list av;		
+		avail_list av;
+		index.size =0;
+		index.used=0;
+		av.size = 0;
+		av.used = 0;
 		char line[LINE_MAX];
 		studentRecord *s = (studentRecord*) malloc(sizeof(studentRecord));
 		memset(s,0,sizeof(studentRecord));
@@ -477,6 +488,7 @@ int main(int argc,char *argv[]){
 				fclose(fi);
 				fclose(fa);
 				fclose(fstudent);
+				free(s);
 				//free(index.index_arr);
 				//free(av.a_arr);
 				exit(0);			//if it is marked as end Tx then exit from program Normally
