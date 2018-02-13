@@ -95,7 +95,7 @@ void insertAvail(avail_list *a,avail_S i,char *mode){
 	} else if(strcmp(mode,"--worst-fit")==0){
 		//add in descending order of size
 		int temp = a->used -1;
-		while (i.size > a->a_arr[temp+1].size && temp>=0){
+		while (i.size > a->a_arr[temp].size && temp>=0){
 			a->a_arr[temp+1].size = a->a_arr[temp].size;
 			a->a_arr[temp+1].off = a->a_arr[temp].off;
 			temp--;
@@ -117,28 +117,28 @@ long holeSize(avail_list *a){
 
 /*Compare function to sort the avail_list in ascending and descending order*/
 int comp_a(const void *a, const void *b){
-	 if(((avail_S*)a)->size > ((avail_S*)b)->size)
+	 if(((avail_S*)a)->size < ((avail_S*)b)->size)
 		return -1;
-	 else if(((avail_S*)a)->size < ((avail_S*)b)->size)
+	 else if(((avail_S*)a)->size > ((avail_S*)b)->size)
 		return 1;
 	 else{
-	 	if(((avail_S*)a)->off > ((avail_S*)b)->off)
+	 	if(((avail_S*)a)->off < ((avail_S*)b)->off)
 			return -1;
-	 	else if(((avail_S*)a)->off < ((avail_S*)b)->off)
+	 	else if(((avail_S*)a)->off > ((avail_S*)b)->off)
 			return 1;
 		return 0;
 	}
 }
 
 int comp_d(const void *a, const void *b){
-	 if(((avail_S*)a)->size > ((avail_S*)b)->size)
+	 if(((avail_S*)a)->size < ((avail_S*)b)->size)
 		return 1;
-	 else if(((avail_S*)a)->size < ((avail_S*)b)->size)
+	 else if(((avail_S*)a)->size > ((avail_S*)b)->size)
 		return -1;
 	 else{
-	 	if(((avail_S*)a)->off > ((avail_S*)b)->off)
+	 	if(((avail_S*)a)->off < ((avail_S*)b)->off)
 			return -1;
-	 	else if(((avail_S*)a)->off < ((avail_S*)b)->off)
+	 	else if(((avail_S*)a)->off > ((avail_S*)b)->off)
 			return 1;
 		return 0;
 	}
