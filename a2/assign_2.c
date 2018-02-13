@@ -75,7 +75,7 @@ void insertAvail(avail_list *a,avail_S i,char *mode){
 		int j = a->used++;
 		a->a_arr[j].size = i.size;
 		a->a_arr[j].off = i.off;	
-		return;
+		return;				//value is already added then return
 	}
 	if(strcmp(mode,"--first-fit")==0){
 		int j = a->used++;
@@ -229,6 +229,7 @@ I/P: key/SID and list and FILE pointer for student.db
 void findElement(FILE *fp, index_list *i,int key){
 	int loc = binaryIndex(i,key);
 	char *buf = (char *)malloc(sizeof(char)*LINE_MAX);
+	memset(buf,0,sizeof(char)*LINE_MAX);
 	//studentRecord s;
 	if(loc ==-1){
 		printf("No record with SID=%d exists\n",key);
@@ -300,11 +301,13 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 					fseek(fp,a->a_arr[j].off,SEEK_SET);
 					pos = ftell(fp);
 					fwrite(temp,sizeof(char),n,fp);
+					//printf("DEBUG: added record at pos=%d\n",pos);
 					ind.key = s->SID;
 					ind.off = pos;
 					insertIndex(i,ind);
 					remain = a->a_arr[j].size - n;
-					if(n>0){
+					//Check remain should be >0 to add into avail_list
+					if(remain>0){			
 						a_l.size = remain;
 						a_l.off = a->a_arr[j].off+n;							
 						insertAvail(a,a_l,mode);
@@ -329,7 +332,8 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 					ind.off = pos;
 					insertIndex(i,ind);
 					remain = a->a_arr[j].size - n;
-					if(n>0){
+					//Check remain should be >0 to add into avail_list
+					if(remain>0){
 						a_l.size = remain;
 						a_l.off = a->a_arr[j].off+n;
 						insertAvail(a,a_l,mode);
@@ -352,7 +356,8 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 				ind.off = pos;
 				insertIndex(i,ind);
 				remain = a->a_arr[j].size - n;
-				if(n>0){
+				//Check remain should be >0 to add into avail_list
+				if(remain>0){
 					a_l.size = remain;
 					a_l.off = a->a_arr[j].off+n;
 					insertAvail(a,a_l,mode);
@@ -422,7 +427,12 @@ int main(int argc,char *argv[]){
 		//Check for index.bin file if exists load the data in file otherwise create a new datastructure
 		FILE *findex = fopen("index.bin","rb");
 		FILE *aindex = fopen("avail.bin","rb");
-		fstudent = fopen(s_file,"ab+");
+		fstudent = fopen(s_file,"r+b");
+		if(fstudent == NULL){
+			FILE *tf = fopen(s_file,"wb");
+			fclose(tf);
+			fstudent = fopen(s_file,"r+b");
+		}	
 		if(findex == NULL){
 			//File is not there Initialize it
 			initIndex(&index,5);
