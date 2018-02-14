@@ -339,12 +339,13 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 					insertIndex(i,ind);
 					remain = a->a_arr[j].size - n;
 					//Check remain should be >0 to add into avail_list
+					a_l.size = remain;
+					a_l.off = a->a_arr[j].off+n;
+					deleteAvail(a,j);
 					if(remain>0){
-						a_l.size = remain;
-						a_l.off = a->a_arr[j].off+n;
 						insertAvail(a,a_l,mode);
 					}
-					deleteAvail(a,j);
+					qsort(a->a_arr,a->used,sizeof(avail_S),comp_a);
 					return;
 				} else {
 					j++;
@@ -363,12 +364,13 @@ void addRecord(FILE *fp,char *mode, index_list *i, avail_list *a,studentRecord *
 				insertIndex(i,ind);
 				remain = a->a_arr[j].size - n;
 				//Check remain should be >0 to add into avail_list
+				a_l.size = remain;
+				a_l.off = a->a_arr[j].off+n;
+				deleteAvail(a,j);
 				if(remain>0){
-					a_l.size = remain;
-					a_l.off = a->a_arr[j].off+n;
 					insertAvail(a,a_l,mode);
 				}
-				deleteAvail(a,j);
+				qsort(a->a_arr,a->used,sizeof(avail_S),comp_d);
 				return;
 			}
 		}	

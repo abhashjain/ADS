@@ -1,4 +1,4 @@
-/*HW2- CSC548
+/*HW2- CSC541
 Author - ajain28 ,ABHASH JAIN
 */
 
@@ -440,10 +440,21 @@ int main(int argc,char *argv[]){
 		FILE *aindex = fopen("avail.bin","rb");
 		fstudent = fopen(s_file,"r+b");
 		if(fstudent == NULL){
+			//if index and avail file exist then delete them
+			if(findex != NULL){
+				fclose(findex);
+				remove("index.bin");
+				findex = fopen("index.bin","rb");
+			}
+			if(aindex!=NULL){
+				fclose(aindex);
+				remove("avail.bin");
+				aindex = fopen("avail.bin","rb");
+			}
 			FILE *tf = fopen(s_file,"wb");
 			fclose(tf);
 			fstudent = fopen(s_file,"r+b");
-		}	
+		} 
 		if(findex == NULL){
 			//File is not there Initialize it
 			initIndex(&index,5);
