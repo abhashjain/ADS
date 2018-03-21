@@ -9,18 +9,17 @@ CSC541- Assignment-3 Disk Based Merge Sort*/
 #define NAME_SIZE 14
 
 int comp_a(const void *a, const void *b){
-     if(((int*)a) < ((int*)b))
-        return -1;
-     else if(((int*)a) > ((int*)b))
-        return 1;
-     return 0;
+    const int *l = (const int *)a;
+	const int *r = (const int *)b;
+	return *l - *r;
 }
 
 int basicSortFile(FILE *finput, char **flist,int size){
+	int bucket_size = size/1000;
 	int temp[BUCKET];
 	int i=0;
 	fseek(finput,0,SEEK_SET);
-	for(;i<size/1000;i++){
+	for(;i<bucket_size;i++){
 		char *file_name = (char*)malloc(sizeof(char)*NAME_SIZE);
 		sprintf(file_name,"input.bin.%03d",i);
 		fread(temp,sizeof(int),BUCKET,finput);
@@ -28,6 +27,7 @@ int basicSortFile(FILE *finput, char **flist,int size){
 		FILE *ftemp = fopen(file_name,"wb");
 		fseek(ftemp,0,SEEK_SET);
 		fwrite(temp,sizeof(int),BUCKET,ftemp);
+		flist[i] = (char*) malloc(sizeof(char)*NAME_SIZE);
 		memcpy(flist[i],file_name,sizeof(char)*NAME_SIZE);
 		//flist[i]=file_name;
 		fclose(ftemp);
@@ -53,7 +53,11 @@ int main(int argc,char *argv[]){
 			int size = ftell(finput);
 			size = size/sizeof(int);
 			printf("number of key %d\n",size);
+			flist = (char **)malloc(sizeof(char *)*(size/1000));
 			basicSortFile(finput,flist,size);
+			for(int i=0;i<size/1000;i++){
+				printf("%s\n",flist[i]);
+			}
 		} else if(strcmp(mode,"--multistep")==0){
 		
 		} else if(strcmp(mode,"--replacement")==0){
