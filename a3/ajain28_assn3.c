@@ -5,34 +5,142 @@ CSC541- Assignment-3 Disk Based Merge Sort*/
 #include<sys/time.h>
 #include<stdlib.h>
 #include<string.h>
+#include<limits.h>
 #define BUCKET 1000
 #define NAME_SIZE 14
 
+
+//int heap_size =0;	//global variable indicate the heap size
 int comp_a(const void *a, const void *b){
     const int *l = (const int *)a;
 	const int *r = (const int *)b;
 	return *l - *r;
 }
 
-int basicSortFile(FILE *finput, char **flist,int size){
-	int bucket_size = size/1000;
-	int temp[BUCKET];
-	int i=0;
-	fseek(finput,0,SEEK_SET);
-	for(;i<bucket_size;i++){
-		char *file_name = (char*)malloc(sizeof(char)*NAME_SIZE);
-		sprintf(file_name,"input.bin.%03d",i);
-		fread(temp,sizeof(int),BUCKET,finput);
-		qsort(temp,BUCKET,sizeof(int),comp_a);
-		FILE *ftemp = fopen(file_name,"wb");
-		fseek(ftemp,0,SEEK_SET);
-		fwrite(temp,sizeof(int),BUCKET,ftemp);
-		flist[i] = (char*) malloc(sizeof(char)*NAME_SIZE);
-		memcpy(flist[i],file_name,sizeof(char)*NAME_SIZE);
-		//flist[i]=file_name;
-		fclose(ftemp);
+/*struct HeapNode{
+	int element;
+	int i;
+	int j;
+};
+
+void swap(HeapNode *x, HeapNode *y)
+{
+    MinHeapNode temp = *x;
+	*x = *y;
+ 	*y = temp;
+}
+
+int left(int i) { return (2*i + 1); }
+
+int right(int i) { return (2*i + 2); }
+
+void Heapify(int i)
+{
+    int l = left(i);
+    int r = right(i);
+    int smallest = i;
+    if (l < heap_size && harr[l].element < harr[i].element)
+        smallest = l;
+    if (r < heap_size && harr[r].element < harr[smallest].element)
+        smallest = r;
+    if (smallest != i)
+    {
+        swap(&harr[i], &harr[smallest]);
+        Heapify(smallest);
+    }
+}
+*/
+void get_number_from_runs(int *input,FILE *frun,int start_pos,int number){
+	int i;
+	for(i=0;i<number;i++){
+		input[start_pos+i]=INT_MAX;
 	}
-return i;
+	fread(input,sizeof(int),number,frun);
+}
+
+void basicSortFile(FILE *finput, FILE *foutput){
+	int i=0,j;
+	//char **flist;
+	int input[BUCKET];
+	int output[BUCKET];
+	fseek(finput,0,SEEK_END);
+	int size = ftell(finput);
+	size = size/sizeof(int);
+	int number_of_runs = size/BUCKET;
+	int rem_number = size%BUCKET;
+	if(rem_number>0)
+		number_of_runs++;
+
+	FILE *fruns[number_of_runs];
+	printf("number of key %d\n",size);
+	//flist = (char **)malloc(sizeof(char *)*(size/1000));
+	
+	fseek(finput,0,SEEK_SET);
+	for(;i<number_of_runs;i++){
+		char file_name[50];
+		//char *file_name = (char*)malloc(sizeof(char)*NAME_SIZE);
+		sprintf(file_name,"input.bin.%03d",i);
+		fread(input,sizeof(int),BUCKET,finput);
+		//this is to fill the remaining number to set INT_MAX in extra run
+		if(i==number_of_runs-1 && rem_number>0){
+			printf("DEBUG:creating extra run\n");
+			for(j=rem_number;j<BUCKET;j++){
+				input[j] = INT_MAX;
+			}
+		}
+		qsort(input,BUCKET,sizeof(int),comp_a);
+		fruns[i] = fopen(file_name,"wb");
+		fseek(fruns[i],0,SEEK_SET);
+		fwrite(input,sizeof(int),BUCKET,fruns[i]);
+		//flist[i] = (char*) malloc(sizeof(char)*NAME_SIZE);
+		//memcpy(flist[i],file_name,sizeof(char)*NAME_SIZE);
+		//fclose(ftemp);
+	}
+	
+	int number_from_each_run = BUCKET/number_of_runs;
+	//Read Initially number_from_each_run from each runs
+	for(j=0;j<number_of_runs;j++){
+		get_number_from_runs(input,fruns[j],j*number_from_each_run,number_from_each_run);
+	}
+	//Loop on all the number until you have merged all the numbers.
+	int number_merged_so_far=0,min_index,output_index=0;
+	while(number_merged_so_far<size){
+		int min = INT_MAX;
+		for(i=0;i<BUCKET;i++){
+			if(input[i] < min){
+				min_index=i;
+				min = input[i];
+			}	
+		}
+		
+		if(input[min_index]!=INT_MAX){
+			//then store in output buffer, if output buffer is full,flush it containt to output file
+			//then check whether this was the last value from this run file,if it is then fetch few more values
+			output[output_index++] = input[min_index];
+			if(output_index==BUCKET){
+				fwrite(output,sizeof(int),BUCKET,foutput);
+				output_index=0;
+			}
+			input[min_index]= INT_MAX;
+			//This part of checking whether all the number from particular run is exhausted or not
+			if((number_from_each_run-(min_index%number_from_each_run))==1){
+				int runs_id = min_index/number_from_each_run;
+				get_number_from_runs(input,fruns[runs_id],runs_id*number_from_each_run,number_from_each_run);
+			}
+		} else {
+			//flush all the values of output to file and then break
+			if(output_index > 0){
+				fwrite(output,sizeof(int),output_index,foutput);
+			}
+			break;
+		}
+	}//End of while
+	printf("Debug: Number of runs %d, remiainder runs %d\n",number_of_runs,rem_number);
+	/*Close input file run file descriptors*/
+	for(i=0;i<number_of_runs;i++){
+		fclose(fruns[i]);
+	}
+//return i;
 }
 
 int main(int argc,char *argv[]){
@@ -42,22 +150,16 @@ int main(int argc,char *argv[]){
 		char *output_file = argv[3];
 		FILE *finput = fopen(input_file,"rb");
 		FILE *foutput = fopen(output_file,"wb");
-		char **flist;
 		if(finput==NULL){
 			printf("Input files doesn't exist\n");
 		}
 		if(strcmp(mode,"--basic")==0){
 			//read the data from input and sort the result and store in sub-file
 			//get the input file size
-			fseek(finput,0,SEEK_END);
-			int size = ftell(finput);
-			size = size/sizeof(int);
-			printf("number of key %d\n",size);
-			flist = (char **)malloc(sizeof(char *)*(size/1000));
-			basicSortFile(finput,flist,size);
-			for(int i=0;i<size/1000;i++){
+			basicSortFile(finput,foutput);
+			/*for(int i=0;i<size/1000;i++){
 				printf("%s\n",flist[i]);
-			}
+			}*/
 		} else if(strcmp(mode,"--multistep")==0){
 		
 		} else if(strcmp(mode,"--replacement")==0){
