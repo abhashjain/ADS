@@ -55,7 +55,14 @@ void get_number_from_runs(int *input,FILE *frun,int start_pos,int number){
 	for(i=0;i<number;i++){
 		input[start_pos+i]=INT_MAX;
 	}
-	fread(input,sizeof(int),number,frun);
+	fread(input+start_pos,sizeof(int),number,frun);
+	/*if(start_pos==0){
+	printf("DEBUG: condition \n");
+	for(int i=0;i<number;i++){
+		printf("%d\t",input[i]);
+	}
+	printf("\n\nHI Abhash\n");
+	}*/
 }
 
 void basicSortFile(FILE *finput, FILE *foutput){
@@ -83,15 +90,17 @@ void basicSortFile(FILE *finput, FILE *foutput){
 		fread(input,sizeof(int),BUCKET,finput);
 		//this is to fill the remaining number to set INT_MAX in extra run
 		if(i==number_of_runs-1 && rem_number>0){
-			printf("DEBUG:creating extra run\n");
+			//printf("DEBUG:creating extra run\n");
 			for(j=rem_number;j<BUCKET;j++){
 				input[j] = INT_MAX;
 			}
 		}
 		qsort(input,BUCKET,sizeof(int),comp_a);
-		fruns[i] = fopen(file_name,"wb");
+		fruns[i] = fopen(file_name,"wb+");
 		fseek(fruns[i],0,SEEK_SET);
 		fwrite(input,sizeof(int),BUCKET,fruns[i]);
+		//clearerr(fruns[i]);
+		fseek(fruns[i],0,SEEK_SET);
 		//flist[i] = (char*) malloc(sizeof(char)*NAME_SIZE);
 		//memcpy(flist[i],file_name,sizeof(char)*NAME_SIZE);
 		//fclose(ftemp);
@@ -119,6 +128,7 @@ void basicSortFile(FILE *finput, FILE *foutput){
 			output[output_index++] = input[min_index];
 			if(output_index==BUCKET){
 				fwrite(output,sizeof(int),BUCKET,foutput);
+				//printf("DEBUG:writting to file\n");
 				output_index=0;
 			}
 			input[min_index]= INT_MAX;
@@ -149,10 +159,12 @@ int main(int argc,char *argv[]){
 		char *input_file = argv[2];
 		char *output_file = argv[3];
 		FILE *finput = fopen(input_file,"rb");
-		FILE *foutput = fopen(output_file,"wb");
+		FILE *foutput = fopen(output_file,"wb+");
+		struct timeval start,end,fin;
 		if(finput==NULL){
-			printf("Input files doesn't exist\n");
+			printf("Error: Input files doesn't exist\n");
 		}
+		gettimeofday(&start,NULL);
 		if(strcmp(mode,"--basic")==0){
 			//read the data from input and sort the result and store in sub-file
 			//get the input file size
@@ -169,6 +181,9 @@ int main(int argc,char *argv[]){
 		}
 		fclose(finput);
 		fclose(foutput);
+		gettimeofday(&end,NULL);
+		timersub(&end,&start,&fin);
+		printf( "Time: %ld.%06ld\n", fin.tv_sec, fin.tv_usec );
 	} else {
 		printf("Usage:<exe> <merge-mode> <input> <output>\n");
 	}	
