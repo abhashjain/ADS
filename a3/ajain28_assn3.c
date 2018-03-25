@@ -17,39 +17,40 @@ int comp_a(const void *a, const void *b){
 	return *l - *r;
 }
 
-/*struct HeapNode{
-	int element;
-	int i;
-	int j;
-};
 
-void swap(HeapNode *x, HeapNode *y)
+void swap(int x, int y)
 {
-    MinHeapNode temp = *x;
-	*x = *y;
- 	*y = temp;
+    int temp = x;
+	x = y;
+ 	y = temp;
+}
+void pswap(int *x,int *y){
+	int temp = *x;
+	*x=*y;
+	*y = temp;
 }
 
 int left(int i) { return (2*i + 1); }
 
 int right(int i) { return (2*i + 2); }
 
-void Heapify(int i)
+void Heapify(int *input,int n,int i)
 {
     int l = left(i);
     int r = right(i);
     int smallest = i;
-    if (l < heap_size && harr[l].element < harr[i].element)
+    if (l < n && input[l] < input[i])
         smallest = l;
-    if (r < heap_size && harr[r].element < harr[smallest].element)
+    if (r < n && input[r] < input[smallest])
         smallest = r;
     if (smallest != i)
     {
-        swap(&harr[i], &harr[smallest]);
-        Heapify(smallest);
+        pswap(&input[i], &input[smallest]);
+        Heapify(input,n,smallest);
     }
 }
-*/
+
+
 void get_number_from_runs(int *input,FILE *frun,int start_pos,int number){
 	int i;
 	for(i=0;i<number;i++){
@@ -310,7 +311,28 @@ void MultiSortFile(FILE *finput,FILE *foutput){
 	}
 }
 
+void Replacement(FILE *finput,FILE *foutput){
+	/*TODO:
+	Read 750 Values for Heap and read input buffer 
+	Initially that can be done by reading total length and do the markation
+	Later fread only happen for the size of 250 buffer whenever it is empty.
+	Call BuildHeap method for 750 values and use the step 3, Now 
+	Next to balance the heap call only heapify method for that top most root element, that is always replaced.
+	Keep on doing this until your initial heap become empty, As your Inital heap become empty or Number is finished from 
+	input.bin, if it is first case then secondary heap would have filled the values which are not moved to output.
+	use them to rebuild the heap.
+	Currently I am creating the output intermediate file is size of 1000, as it is not mentioned
+	*/
+	
+}
 int main(int argc,char *argv[]){
+	/*int t[]={4,15,3,9,24,2};
+	for(int i=6/2-1;i>=0;i--){
+		Heapify(t,6,i);
+	}
+	for(int i=0;i<6;i++){
+		printf("%d\t",t[i]);
+	}*/
 	if(argc==4){
 		char *mode = argv[1];
 		char *input_file = argv[2];
@@ -332,7 +354,7 @@ int main(int argc,char *argv[]){
 		} else if(strcmp(mode,"--multistep")==0){
 			MultiSortFile(finput,foutput);
 		} else if(strcmp(mode,"--replacement")==0){
-		
+			Replacement(finput,foutput);	
 		} else {
 			printf("Unknown Option\n");	
 		}
