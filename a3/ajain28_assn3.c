@@ -53,7 +53,8 @@ void Heapify(int *input,int n,int i)
 }
 
 void BuildHeap(int *input,int n){
-	for(int i=(n/2)-1;i>=0;i--){
+	int i;
+	for(i=(n/2)-1;i>=0;i--){
 		Heapify(input,n,i);
 	}
 }
@@ -261,12 +262,13 @@ void MultiSortFile(FILE *finput,FILE *foutput){
 				break;
 			}
 		}//End of while
+		fseek(super[i],0,SEEK_SET);	
 	}//End of for loop to create super run
 	
 	//seek to first location of all the super runs
-	for(i=0;i<number_of_super_runs;i++){
+	/*for(i=0;i<number_of_super_runs;i++){
 		fseek(super[i],0,SEEK_SET);
-	}
+	}*/
 
 	//2nd time
 	int number_from_each_super = BUCKET/number_of_super_runs;
@@ -421,7 +423,7 @@ void Replacement(FILE *finput,FILE *foutput){
 	for(i=0;i<total_runs;i++){
 		fseek(fruns[i],0,SEEK_SET);
 	}
-	for(int i=0;i<BUCKET;i++){
+	for(i=0;i<BUCKET;i++){
 		input[i] = INT_MAX; 
 	}
 	//Do the merge of total_runs
