@@ -6,7 +6,7 @@ CSC541- Assignment-3 Disk Based Merge Sort*/
 #include<stdlib.h>
 #include<string.h>
 #include<limits.h>
-#define BUCKET 1000		//BUCKET size
+#define BUCKET 1000	//BUCKET size
 #define NAME_SIZE 14 //USED for file name size, need to reinvestigate for SUPER file
 #define SUPER 15	//Number of intermediate file to combin to make super run
 #define HEAP 750	//Heap size
@@ -87,7 +87,7 @@ void basicSortFile(FILE *finput, FILE *foutput){
 		number_of_runs++;
 
 	FILE *fruns[number_of_runs];
-	printf("number of key %d\n",size);
+	//printf("number of key %d\n",size);
 	//flist = (char **)malloc(sizeof(char *)*(size/1000));
 	
 	fseek(finput,0,SEEK_SET);
@@ -153,7 +153,7 @@ void basicSortFile(FILE *finput, FILE *foutput){
 			break;
 		}
 	}//End of while
-	printf("Debug: Number of runs %d, remiainder runs %d\n",number_of_runs,rem_number);
+	//printf("Debug: Number of runs %d, remiainder runs %d\n",number_of_runs,rem_number);
 	/*Close input file run file descriptors*/
 	for(i=0;i<number_of_runs;i++){
 		fclose(fruns[i]);
@@ -176,7 +176,7 @@ void MultiSortFile(FILE *finput,FILE *foutput){
 		number_of_runs++;
 
 	FILE *fruns[number_of_runs];
-	printf("number of key %d\n",size);
+	//printf("number of key %d\n",size);
 	//flist = (char **)malloc(sizeof(char *)*(size/1000));
 	
 	fseek(finput,0,SEEK_SET);
@@ -308,7 +308,7 @@ void MultiSortFile(FILE *finput,FILE *foutput){
 			break;
 		}
 	}//End of while
-	printf("Debug: Number of runs %d, remiainder runs %d\n",number_of_runs,rem_number);
+	//printf("Debug: Number of runs %d, remiainder runs %d\n",number_of_runs,rem_number);
 	/*Close input file run file descriptors*/
 	for(i=0;i<number_of_runs;i++){
 		fclose(fruns[i]);
@@ -355,7 +355,7 @@ void Replacement(FILE *finput,FILE *foutput){
 		
 		//create a run file using the logic of replacement
 		while(1){
-			BuildHeap(input,h_end);
+			BuildHeap(input,h_end+1);
 			//Apply the condition 3
 			output[output_index++]=input[h_start];
 //filled:		
@@ -387,7 +387,7 @@ void Replacement(FILE *finput,FILE *foutput){
 			}
 			if(output_index==BUCKET){
 				//output buffer is full, flush it to file
-				fwrite(output,sizeof(int),output_index,foutput);
+				fwrite(output,sizeof(int),output_index,fruns[run_count]);
 				number_processed +=output_index; 
 				output_index=0;
 			}
@@ -396,16 +396,18 @@ void Replacement(FILE *finput,FILE *foutput){
 				//flush the remaining data and break from this loop,
 				//but copy the data 
 				if(output_index>0){
-					fwrite(output,sizeof(int),output_index,foutput);
+					fwrite(output,sizeof(int),output_index,fruns[run_count]);
 					number_processed+=output_index;
 					output_index=0;
 				}
 				//copy the data to start of heap
-				int t = input[h_end+1];
-				for(int i=HEAP-1;i>=s_heap;i--){
-					input[++h_end]= input[i];
+				//int t = input[h_end+1];
+				int i=0;
+				for(i=0;i<(HEAP-s_heap);i++){
+					input[i]= input[i+s_heap];
 				}
-				input[h_end]=t;
+				h_end = i-1;
+				//input[h_end]=t;
 				break;
 			}
 			
@@ -472,13 +474,14 @@ void Replacement(FILE *finput,FILE *foutput){
 
 
 int main(int argc,char *argv[]){
-	/*int t[]={4,15,3,9,24,2};
-	for(int i=6/2-1;i>=0;i--){
-		Heapify(t,6,i);
-	}
-	for(int i=0;i<6;i++){
+	/*int t[]={16,47,5,12};
+	int n1= 4;
+	BuildHeap(t,n1);
+	
+	for(int i=0;i<3;i++){
 		printf("%d\t",t[i]);
-	}*/
+	}
+*/
 	if(argc==4){
 		char *mode = argv[1];
 		char *input_file = argv[2];
