@@ -6,9 +6,11 @@ CSC541- Assignment-3 Disk Based Merge Sort*/
 #include<stdlib.h>
 #include<string.h>
 #include<limits.h>
-#define BUCKET 1000
-#define NAME_SIZE 14
-#define SUPER 15
+#define BUCKET 1000		//BUCKET size
+#define NAME_SIZE 14 //USED for file name size, need to reinvestigate for SUPER file
+#define SUPER 15	//Number of intermediate file to combin to make super run
+#define HEAP 750	//Heap size
+#define BUFFER 250	//Buffer size, Based on Bucket value as 1000
 
 //int heap_size =0;	//global variable indicate the heap size
 int comp_a(const void *a, const void *b){
@@ -50,6 +52,11 @@ void Heapify(int *input,int n,int i)
     }
 }
 
+void BuildHeap(int *input,int n){
+	for(int i=(n/2)-1;i>=0;i--){
+		Heapify(input,n,i);
+	}
+}
 
 void get_number_from_runs(int *input,FILE *frun,int start_pos,int number){
 	int i;
@@ -323,8 +330,147 @@ void Replacement(FILE *finput,FILE *foutput){
 	use them to rebuild the heap.
 	Currently I am creating the output intermediate file is size of 1000, as it is not mentioned
 	*/
+	int input[BUCKET];
+	int output[BUCKET];
+	fseek(finput,0,SEEK_END);
+	int total_keys = ftell(finput);
+	total_keys = total_keys/sizeof(int);
+	int total_runs = total_keys/BUCKET;
+	int rem_runs = total_keys%BUCKET;
+	if(rem_runs>0)
+		total_runs++;
+	FILE *fruns[total_runs];		//Here it is assumed that always ouput buffer flush to a new file.
+	fseek(finput,0,SEEK_SET);
+	int heap = fread(input,sizeof(int),HEAP,finput);
+	int buffer = fread(input+HEAP,sizeof(int),BUFFER,finput);
+	int h_start = 0, h_end=heap-1,output_index=0,b_start = HEAP,b_end=HEAP+buffer-1,run_count=0,i=0,j=0;
+	int s_heap=0,number_processed=0;
+	//have to decide on end crieteria
+	//one possibilty until there is no more fread return count and buffer and secondary heap is empty
+	while(number_processed!=total_keys){		//TODO:have to change this condition
+		//create file name for this file
+		char file_name[50];
+		sprintf(file_name,"input.bin.%03d",run_count);
+		fruns[run_count] =fopen(file_name,"wb+");
+		
+		//create a run file using the logic of replacement
+		while(1){
+			BuildHeap(input,h_end);
+			//Apply the condition 3
+			output[output_index++]=input[h_start];
+//filled:		
+			if(b_start<=b_end){
+				if(input[h_start]<=input[b_start]){
+					//then replace H1 with B1
+					input[h_start]= input[b_start];
+					b_start++;
+				}else{
+					//replace H1 with End of heap and replace End of heap with B1
+					pswap(&input[h_start],&input[h_end]);
+					pswap(&input[h_end],&input[b_start]);
+					s_heap = h_end;
+					b_start++;
+					h_end--;
+				}
+			} else{
+				pswap(&input[h_start],&input[h_end]);
+				h_end--;
+			}
+			if(b_start>b_end) {
+				//buffer is empty,
+				//option 1- read more data from input.bin
+				//or consume all the data in primary heap and then copy the data from secondary heap to primary heap
+				int d = fread(input+HEAP,sizeof(int),BUFFER,finput);
+				b_start = HEAP;
+				b_end = HEAP+d-1;
+				//goto filled;
+			}
+			if(output_index==BUCKET){
+				//output buffer is full, flush it to file
+				fwrite(output,sizeof(int),output_index,foutput);
+				number_processed +=output_index; 
+				output_index=0;
+			}
+			//now check whether heap is empty
+			if(h_start>h_end){
+				//flush the remaining data and break from this loop,
+				//but copy the data 
+				if(output_index>0){
+					fwrite(output,sizeof(int),output_index,foutput);
+					number_processed+=output_index;
+					output_index=0;
+				}
+				//copy the data to start of heap
+				int t = input[h_end+1];
+				for(int i=HEAP-1;i>=s_heap;i--){
+					input[++h_end]= input[i];
+				}
+				input[h_end]=t;
+				break;
+			}
+			
+		}//Inner while 
+		run_count++;
+	}//outer While
 	
-}
+	//DONE with replacement only merge the sorted runs produced by replacement
+	//set the seek for all open file
+	total_runs = run_count;
+	for(i=0;i<total_runs;i++){
+		fseek(fruns[i],0,SEEK_SET);
+	}
+	for(int i=0;i<BUCKET;i++){
+		input[i] = INT_MAX; 
+	}
+	//Do the merge of total_runs
+	int number_from_each_run = BUCKET/total_runs;
+	for(j=0;j<total_runs;j++){
+        get_number_from_runs(input,fruns[j],j*number_from_each_run,number_from_each_run);
+    }
+    //Loop on all the number until you have merged all the numbers.
+    int number_merged_so_far=0,min_index;
+	output_index=0;
+    while(number_merged_so_far<total_keys){
+        int min = INT_MAX;
+        for(i=0;i<BUCKET;i++){
+            if(input[i] < min){
+                min_index=i;
+                min = input[i];
+            }
+        }
+
+        if(input[min_index]!=INT_MAX){
+            //then store in output buffer, if output buffer is full,flush it containt to output file
+            //then check whether this was the last value from this run file,if it is then fetch few more values
+            output[output_index++] = input[min_index];
+            if(output_index==BUCKET){
+                fwrite(output,sizeof(int),BUCKET,foutput);
+                //printf("DEBUG:writting to file\n");
+                output_index=0;
+            }
+            input[min_index]= INT_MAX;
+            //This part of checking whether all the number from particular run is exhausted or not
+            if((number_from_each_run-(min_index%number_from_each_run))==1){
+                int runs_id = min_index/number_from_each_run;
+                get_number_from_runs(input,fruns[runs_id],runs_id*number_from_each_run,number_from_each_run);
+            }
+        } else {
+            //flush all the values of output to file and then break
+            if(output_index > 0){
+                fwrite(output,sizeof(int),output_index,foutput);
+            }
+            break;
+        }
+    }//End of while
+	/*Close input file run file descriptors*/
+    for(i=0;i<total_runs;i++){
+        fclose(fruns[i]);
+    }
+}//end of function
+
+
+
+
 int main(int argc,char *argv[]){
 	/*int t[]={4,15,3,9,24,2};
 	for(int i=6/2-1;i>=0;i--){
