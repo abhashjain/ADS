@@ -37,7 +37,7 @@ void push(struct qNode **root, long offset){
     if(temp == NULL){
         struct qNode *t = (struct qNode*)malloc(sizeof(struct qNode));
         t->next = NULL;
-        t->offset = key;
+        t->offset = offset;
         *root = t;
         return;
     }
@@ -45,13 +45,13 @@ void push(struct qNode **root, long offset){
         temp= temp->next;
     }
     struct qNode *t = (struct qNode *)malloc(sizeof(struct qNode));
-    t->offset = key;
+    t->offset = offset;
     t->next = NULL;
     temp->next = t;
 }
 
 /*Remove an element from front of the queue*/
-void pop(struct qNode *root){
+void pop(struct qNode **root){
 	struct qNode *temp  = *root;
     if(temp==NULL){
         return;
@@ -62,10 +62,10 @@ void pop(struct qNode *root){
 }
 
 /*Return the element at front*/
-long front(struct qNode *root){
+long front(struct qNode **root){
 	struct qNode *temp = *root;
     if(temp == NULL){
-        return -1;
+        return LONG_MIN;
     } else {
         return temp->offset;
     }
@@ -93,7 +93,7 @@ btree_node* makeNode(int order){
 btree_node* readNode(FILE *fp,long offset,int order){
 	btree_node *temp = makeNode(order);
 	fseek(fp,offset,SEEK_SET);
-	fread(temp->n,sizeof(int),1,fp);
+	fread(&(temp->n),sizeof(int),1,fp);
 	int t = fread(&(temp->key),sizeof(int),order-1,fp);
 	fread(&(temp->child),sizeof(long),order,fp);
 	if(t ==0){
@@ -106,7 +106,9 @@ btree_node* readNode(FILE *fp,long offset,int order){
 /*This method search the target and return the offset to the node,
 	if tg not there then return -1*/
 long bsearch_tree(int target,long offset,int order,FILE *fp){
-	btree_node *root =  readFromFile(fp,offset,order);
+	btree_node *root =  readNode(fp,offset,order);
+	if(root == NULL)
+		return LONG_MIN;
 	long s=0;
 	while(s < (order-1)){
 		if(target == root->key[s]){
@@ -118,16 +120,18 @@ long bsearch_tree(int target,long offset,int order,FILE *fp){
 		}
 	}//end of while
 	//read the content of root->child[s] offset value from disk file
-	if(root->ref[s]!=0){
-		return bsearch_tree(target,root->ref[s],order,fp);
+	if(root->child[s]!=0){
+		return bsearch_tree(target,root->child[s],order,fp);
 	} else {
-		return -1;
+		return LONG_MIN;
 	}
 }
 void printBTree(FILE *fp,int order,long offset){
-	btree_node *node = readFromFile(fp,offset,order);
+	btree_node *node = readNode(fp,offset,order);
+	if(node ==NULL)
+		return;
 	int i=0,level=1;
-	if(node.n==0){
+	if(node->n==0){
 		return;
 	}	
 	struct qNode *q=NULL;
@@ -142,11 +146,11 @@ void printBTree(FILE *fp,int order,long offset){
 		while (qSize > 0){
 			long noffset = front(&q);
 			//print the node from given offset
-			node = readFromFile(fp,noffset,order);
-			for(i=0;i<node.n-1;i++){
-				printf( "%d,", node.key[ i ] );
+			node = readNode(fp,noffset,order);
+			for(i=0;i<node->n-1;i++){
+				printf( "%d,", node->key[ i ] );
 			}
-			printf( "%d", node.key[ node.n - 1 ] );
+			printf( "%d", node->key[ node->n - 1 ] );
 			pop(&q);
 			//traverse all the child and if it is present push it into queue
 			for(i=0;i<order;i++){
@@ -161,23 +165,19 @@ void printBTree(FILE *fp,int order,long offset){
 }
 
 
-retrunNode addNode(FILE *fp,int order,int key,int offset){
+returnNode addNode(FILE *fp,int order,int key,int offset){
 	//Given a offset read the node from b tree file
 	btree_node *node = readNode(fp,offset,order);
 	int i,isLeaf = 1,j=0,k=0;
 	returnNode rNode;
 
-	if(node == NULL){
-		rNode.isValid = -1;
-		return rNode;
-	}
-	for(i=0;i<node.n;i++){
-		if(key<node.key[i])
+	for(i=0;i<node->n;i++){
+		if(key<node->key[i])
 			break;
 	}
-	if(node.child[i]!=0){
+	if(node->child[i]!=0){
 		isLeaf=0;
-		rNode = addNode(fp,order,key,node.child[i]);
+		rNode = addNode(fp,order,key,node->child[i]);
 	}
 
 	//IF it is a leaf node then add it here, Before adding check if this node is full
@@ -185,34 +185,34 @@ retrunNode addNode(FILE *fp,int order,int key,int offset){
 	//otherwise the split node and return the spl;it key to parent call
 	if(isLeaf==1){
 		//leaf case
-		if(node.n<=order-1){
+		if(node->n<=order-1){
 			//Node has place to accomodate this node
 			btree_node *newNode = makeNode(order);
 			k=0;
-			newNode.n = node.n + 1;
-			for(i=0;i<=newNode.n;i++){
-				if(node.key[i]<key){
-					newNode.key[k++] = node.key[i]; 
+			newNode->n = node->n + 1;
+			for(i=0;i<=newNode->n;i++){
+				if(node->key[i]<key){
+					newNode->key[k++] = node->key[i]; 
 				} else {
-					newNode.key[k++] = key;
+					newNode->key[k++] = key;
 				}
 			}
-			retrunNode temp;
+			returnNode temp;
 			temp.isValid = -1 ; // invalidate return object
 			//overwrite node to current nodes offset
 			fseek(fp,offset,SEEK_SET);
-			fwrite(&newNode.n,sizeof(int),1,fp);
-			fwrite(newNode.key,sizeof(int),order-1,fp);
-			fwrite(newNode.child,sizeof(long),order,fp);
+			fwrite(&(newNode->n),sizeof(int),1,fp);
+			fwrite(newNode->key,sizeof(int),order-1,fp);
+			fwrite(newNode->child,sizeof(long),order,fp);
 			return temp;
 		} else {
 			//have to split this node to insert this key
 			//copy all the node to a temp array of size node.n+1 and then sort them
 			
 
-			int tempArr[node.n+1];
-			for(j=0;j<node.n;j++){
-				tempArr[j] = node.key[i]; 	
+			int tempArr[node->n+1];
+			for(j=0;j<node->n;j++){
+				tempArr[j] = node->key[i]; 	
 			}
 			tempArr[j] = key;
 			//sort them
@@ -228,13 +228,13 @@ retrunNode addNode(FILE *fp,int order,int key,int offset){
 			leNode->n = m;
 			k=0;
 			for(i=m+1;i<order;i++){
-				rtnode->key[k++] = tempArr[i];
+				rtNode->key[k++] = tempArr[i];
 			}
 			rtNode->n = k;
 			fseek(fp,offset,SEEK_SET);
-			fwrite(&leNode.n,sizeof(int),1,fp);
-			fwrite(leNode.key,sizeof(int),order-1,fp);
-			fwrite(leNode.child,sizeof(long),order,fp);
+			fwrite(&(leNode->n),sizeof(int),1,fp);
+			fwrite(leNode->key,sizeof(int),order-1,fp);
+			fwrite(leNode->child,sizeof(long),order,fp);
 			//save the given offset and key in ret Structure
 			returnNode temp; 
 			temp.isValid = 1;
@@ -242,9 +242,9 @@ retrunNode addNode(FILE *fp,int order,int key,int offset){
 			fseek(fp,0,SEEK_END);
 			temp.offset= ftell(fp);
 			//write right node to end of file
-			fwrite(&rtNode.n,sizeof(int),1,fp);
-			fwrite(rtNode.key,sizeof(int),order-1,fp);
-			fwrite(rtNode.child,sizeof(long),order,fp);
+			fwrite(&(rtNode->n),sizeof(int),1,fp);
+			fwrite(rtNode->key,sizeof(int),order-1,fp);
+			fwrite(rtNode->child,sizeof(long),order,fp);
 			return temp;
 
 		}
@@ -255,37 +255,81 @@ retrunNode addNode(FILE *fp,int order,int key,int offset){
 			return rNode;	//nothing needs to be done as there is nothing to add
 		}
 		//check for overflow
-		if(node.n < order-1){
+		if(node->n < order-1){
 			btree_node *newNode = makeNode(order);
 			k=0;
-			newNode.n = node.n+1;
+			newNode->n = node->n+1;
 			//copy the node keys and its child key in sorted order.
 			for(k=0;k<i;k++){
-				newNode.key[k] = node.key[k];
-				newNode.child[k] = node.child[k];
+				newNode->key[k] = node->key[k];
+				newNode->child[k] = node->child[k];
 			}
 			//copy the node from return structure
-			newNode.key[k] = rNode.key;
-			newNode.child[k++] = rNode.offset;
+			newNode->key[k] = rNode.key;
+			newNode->child[k++] = rNode.offset;
 			for(j=i;j<order-1;j++){
-				newNode.key[k] = node.key[j];
-				newNode.child[k++] = node.child[j];
+				newNode->key[k] = node->key[j];
+				newNode->child[k++] = node->child[j];
 			}
 			returnNode temp;
 			temp.isValid =-1;
 			fseek(fp,offset,SEEK_SET);
-			fwrite(&newNode.n,sizeof(int),1,fp);
-			fwrite(newNode.key,sizeof(int),order-1,fp);
-			fwrite(newNode.child,sizeof(long),order,fp);
+			fwrite(&(newNode->n),sizeof(int),1,fp);
+			fwrite(newNode->key,sizeof(int),order-1,fp);
+			fwrite(newNode->child,sizeof(long),order,fp);
 			return temp;
 		} else {
 			//overflow on internal node, do the similar thing as before by creaing 2 Node and 
 			//rt will be written in end and left will be overwritten the same location but, we careful about the 
 			//child pointer now
 			//TODO
-			int temp;
+			int key_temp[order];
+			long offset_temp[order+1];
+			returnNode temp;
+			for(k=0;k<i;k++){
+				key_temp[k] = node->key[k];
+				offset_temp[k] = node->child[k];
+			}
+			//now copy the return structure value
+			key_temp[i] = rNode.key;
+			offset_temp[i] = node->child[k];
+			offset_temp[i+1] = rNode.offset;
+			for(k=i;k<node->n;k++){
+				key_temp[k+1] = node->key[k];
+				offset_temp[k+2] = node->child[k+1];
+			}
+			int m = order/2;
+			btree_node *leNode = makeNode(order);
+			btree_node *rtNode = makeNode(order);
+			for(i=0;i<m;i++){
+				leNode->key[i] = key_temp[i];
+				leNode->child[i] = offset_temp[i];
+			}
+			leNode->child[i] = offset_temp[i];
+			leNode->n = m;
+			temp.key = key_temp[m];
+			temp.isValid = 1;
+			k=0;
+			for(i=m+1;i<order;i++){
+				rtNode->key[k] = key_temp[i];
+				rtNode->child[k++] = offset_temp[i];
+			}
+			rtNode->child[k] = offset_temp[i];
+			rtNode->n = k;
+			fseek(fp,offset,SEEK_SET);
+			fwrite(&(leNode->n),sizeof(int),1,fp);
+			fwrite(leNode->key,sizeof(int),order-1,fp);
+			fwrite(leNode->child,sizeof(long),order,fp);
+			fseek(fp,0,SEEK_END);
+			int rloc = ftell(fp);
+			temp.offset = rloc;
+			fwrite(&(rtNode->n),sizeof(int),1,fp);
+			fwrite(rtNode->key,sizeof(int),order-1,fp);
+			fwrite(rtNode->child,sizeof(long),order,fp);
+			return temp;
 		}
 	}
+	return rNode;
 }
 
 int main(int argc,char *argv[]){
@@ -304,12 +348,12 @@ int main(int argc,char *argv[]){
 		fp = fopen(index_file,"rb+");
 		if(fp!=NULL){
 			//get the offset long type first and then read the root
-			fread(root_offset,sizeof(long),1,fp);
+			fread(&root_offset,sizeof(long),1,fp);
 			
 		}else{
 			//create a new file and continue from there
 			fp = fopen(index_file,"wb+");
-			fwrite(root_offset,sizeof(long),1,fp);
+			fwrite(&root_offset,sizeof(long),1,fp);
 			
 		}
 		while(fgets(line,LINE_MAX,stdin)!=NULL){
@@ -325,15 +369,32 @@ int main(int argc,char *argv[]){
 				printf("add %d key to B tree\n",data);
 				//here check for the node using find method then find it
 				//if node not found then only call add method.
-				if(bsearch_tree(data,root_offset,order,fp)!=-1){
+				if(bsearch_tree(data,root_offset,order,fp)!=LONG_MIN){
 					printf("Entry with key=%d already exists\n",data);
 				} else {
 					//call add this entry
+					returnNode rt = addNode(fp,order,data,root_offset);		
+					if(rt.isValid !=-1){
+						//there is a addition for a new node in the root and update the root_offset
+						btree_node *node = makeNode(order);
+						node->n = 1;
+						node->key[0] = rt.key;
+						node->child[0] = root_offset;
+						node->child[1] = rt.offset;
+						fseek(fp,0,SEEK_END);
+						int newroot =  ftell(fp);
+						fwrite(&(node->n),sizeof(int),1,fp);
+						fwrite((node->key),sizeof(int),order-1,fp);
+						fwrite(node->child,sizeof(long),order,fp);
+						fseek(fp,0,SEEK_SET);
+						fwrite(&newroot,sizeof(long),1,fp);
+						root_offset = newroot;
+					}
 				}
 			} else if(strcmp(ch,"find")==0){
 				ch = strtok(NULL," ");
 				int data = atoi(ch);
-				if(bsearch_tree(data,root_offset,order,fp)!=-1){
+				if(bsearch_tree(data,root_offset,order,fp)!=LONG_MIN){
 					printf("Entry with key=%d exists\n",data);
 				} else {
 					printf("Entry with key=%d does not exist\n",data);
