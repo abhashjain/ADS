@@ -19,10 +19,10 @@ typedef struct{
 	long offset;
 }returnNode;
 
-typedef struct{
+struct qNode{
 	long offset;
-	qNode* next;
-}qNode;
+	struct qNode* next;
+};
 
 int comp_a(const void *a, const void *b){
     const int *l = (const int *)a;
@@ -32,22 +32,54 @@ int comp_a(const void *a, const void *b){
 
 
 /* add an element in the last*/
-void push(qNode *root, long offset){
-	if(root==NULL){
-		//this is the first Node to add in the queue
-		qNode *temp = (qNode *)malloc(sizeof(qNode));
-		temp->next = NULL;
-	}
+void push(struct qNode **root, long offset){
+    struct qNode *temp = *root;
+    if(temp == NULL){
+        struct qNode *t = (struct qNode*)malloc(sizeof(struct qNode));
+        t->next = NULL;
+        t->offset = key;
+        *root = t;
+        return;
+    }
+    while(temp->next!=NULL){
+        temp= temp->next;
+    }
+    struct qNode *t = (struct qNode *)malloc(sizeof(struct qNode));
+    t->offset = key;
+    t->next = NULL;
+    temp->next = t;
 }
 
 /*Remove an element from front of the queue*/
-void pop(qNode *root){
-
+void pop(struct qNode *root){
+	struct qNode *temp  = *root;
+    if(temp==NULL){
+        return;
+    }else {
+        *root = temp->next;
+        free(temp);
+    }
 }
 
 /*Return the element at front*/
-qNode* front(qNode *root){
+long front(struct qNode *root){
+	struct qNode *temp = *root;
+    if(temp == NULL){
+        return -1;
+    } else {
+        return temp->offset;
+    }
+}
 
+/*Return the size of queue*/
+int size(struct qNode **root){
+    int count =0;
+    struct qNode *t = *root;
+    while(t!=NULL){
+        count++;
+        t = t->next;
+    }
+    return count;
 }
 
 btree_node* makeNode(int order){
@@ -74,7 +106,7 @@ btree_node* readNode(FILE *fp,long offset,int order){
 /*This method search the target and return the offset to the node,
 	if tg not there then return -1*/
 long bsearch_tree(int target,long offset,int order,FILE *fp){
-	b_tree *root =  readFromFile(fp,offset,order);
+	btree_node *root =  readFromFile(fp,offset,order);
 	long s=0;
 	while(s < (order-1)){
 		if(target == root->key[s]){
@@ -92,6 +124,42 @@ long bsearch_tree(int target,long offset,int order,FILE *fp){
 		return -1;
 	}
 }
+void printBTree(FILE *fp,int order,long offset){
+	btree_node *node = readFromFile(fp,offset,order);
+	int i=0,level=1;
+	if(node.n==0){
+		return;
+	}	
+	struct qNode *q=NULL;
+	push(&q,offset);
+	while(1){
+		int qSize = size(&q);
+		if(qSize == 0){
+			break;	
+		}
+		//print the level count
+		printf("  %d:",level++);
+		while (qSize > 0){
+			long noffset = front(&q);
+			//print the node from given offset
+			node = readFromFile(fp,noffset,order);
+			for(i=0;i<node.n-1;i++){
+				printf( "%d,", node.key[ i ] );
+			}
+			printf( "%d", node.key[ node.n - 1 ] );
+			pop(&q);
+			//traverse all the child and if it is present push it into queue
+			for(i=0;i<order;i++){
+				if(node->child[i]!=0){
+					push(&q,node->child[i]);
+				}
+			}
+			qSize--;
+		}
+		printf("\n");
+	}
+}
+
 
 retrunNode addNode(FILE *fp,int order,int key,int offset){
 	//Given a offset read the node from b tree file
@@ -272,6 +340,7 @@ int main(int argc,char *argv[]){
 				}
 				printf("Find %d in B-tree\n",data);
 			} else if(strcmp(ch,"print\n")==0){
+				printBTree(fp,order,root_offset);
 				printf("Print the whole B-tree by level\n");
 			} else {
 				printf("Invalid Option\n");
