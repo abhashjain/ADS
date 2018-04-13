@@ -144,7 +144,7 @@ void printBTree(FILE *fp,int order,long offset){
 			break;	
 		}
 		//print the level count
-		printf("  %d:",level++);
+		printf(" %d: ",level++);
 		while (qSize > 0){
 			long noffset = front(&q);
 			//print the node from given offset
@@ -275,10 +275,11 @@ returnNode addNode(FILE *fp,int order,int key,int offset){
 			}
 			//copy the node from return structure
 			newNode->key[k] = rNode.key;
-			newNode->child[k++] = rNode.offset;
+			newNode->child[i] = node->child[i];
+			newNode->child[i+1] = rNode.offset;
 			for(j=i;j<order-1;j++){
-				newNode->key[k] = node->key[j];
-				newNode->child[k++] = node->child[j];
+				newNode->key[j+1] = node->key[j];
+				newNode->child[j+2] = node->child[j+1];
 			}
 			returnNode temp;
 			temp.isValid =-1;
@@ -378,12 +379,15 @@ int main(int argc,char *argv[]){
 			memcpy(temp,line,LINE_MAX);
 			char *ch = strtok(temp," ");
 			if(strcmp(ch,"end\n")==0){
-				printf("Will write the root offset to the front and then close\n");
+				//printf("Will write the root offset to the front and then close\n");
+				fseek(fp,0,SEEK_SET);
+				fwrite(&root_offset,sizeof(long),1,fp);
+				fclose(fp);
 				exit(0);
 			} else if(strcmp(ch,"add")==0){
 				ch = strtok(NULL," ");
 				int data = atoi(ch);
-				printf("add %d key to B tree\n",data);
+				//printf("add %d key to B tree\n",data);
 				//here check for the node using find method then find it
 				//if node not found then only call add method.
 				if(bsearch_tree(data,root_offset,order,fp)!=LONG_MIN){
@@ -416,10 +420,10 @@ int main(int argc,char *argv[]){
 				} else {
 					printf("Entry with key=%d does not exist\n",data);
 				}
-				printf("Find %d in B-tree\n",data);
+				//printf("Find %d in B-tree\n",data);
 			} else if(strcmp(ch,"print\n")==0){
 				printBTree(fp,order,root_offset);
-				printf("Print the whole B-tree by level\n");
+				//printf("Print the whole B-tree by level\n");
 			} else {
 				printf("Invalid Option\n");
 			}
