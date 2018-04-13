@@ -112,7 +112,7 @@ long bsearch_tree(int target,long offset,int order,FILE *fp){
 	if(root == NULL)
 		return LONG_MIN;
 	long s=0;
-	while(s < (order-1)){
+	while(s < root->n) {
 		if(target == root->key[s]){
 			return root->child[s];
 		} else if(target < root->key[s]){
@@ -152,7 +152,7 @@ void printBTree(FILE *fp,int order,long offset){
 			for(i=0;i<node->n-1;i++){
 				printf( "%d,", node->key[ i ] );
 			}
-			printf( "%d", node->key[ node->n - 1 ] );
+			printf( "%d ", node->key[ node->n - 1 ] );
 			pop(&q);
 			//traverse all the child and if it is present push it into queue
 			for(i=0;i<order;i++){
@@ -187,7 +187,7 @@ returnNode addNode(FILE *fp,int order,int key,int offset){
 	//otherwise the split node and return the spl;it key to parent call
 	if(isLeaf==1){
 		//leaf case
-		if(node->n<=order-1){
+		if(node->n < order-1){
 			//Node has place to accomodate this node
 			btree_node *newNode = makeNode(order);
 			k=0;
@@ -221,7 +221,7 @@ returnNode addNode(FILE *fp,int order,int key,int offset){
 
 			int tempArr[node->n+1];
 			for(j=0;j<node->n;j++){
-				tempArr[j] = node->key[i]; 	
+				tempArr[j] = node->key[j]; 	
 			}
 			tempArr[j] = key;
 			//sort them
