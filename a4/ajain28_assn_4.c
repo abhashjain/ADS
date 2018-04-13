@@ -94,8 +94,10 @@ btree_node* readNode(FILE *fp,long offset,int order){
 	btree_node *temp = makeNode(order);
 	fseek(fp,offset,SEEK_SET);
 	fread(&(temp->n),sizeof(int),1,fp);
-	int t = fread(&(temp->key),sizeof(int),order-1,fp);
-	fread(&(temp->child),sizeof(long),order,fp);
+	//fread((temp->key),sizeof(int),order-1,fp);
+	int t = fread(temp->key,sizeof(int),order-1,fp);
+	fread(temp->child,sizeof(long),order,fp);
+	//return temp;
 	if(t ==0){
 		free(temp);
 		return NULL;
@@ -354,7 +356,15 @@ int main(int argc,char *argv[]){
 			//create a new file and continue from there
 			fp = fopen(index_file,"wb+");
 			fwrite(&root_offset,sizeof(long),1,fp);
-			
+			//this code is written to make sure that there is atleast one mode in a new file
+			btree_node *node = makeNode(order);
+			node->n =0;
+			root_offset = ftell(fp);
+			fseek(fp,0,SEEK_SET);
+			fwrite(&root_offset,sizeof(long),1,fp);
+			fwrite(&(node->n),sizeof(int),1,fp);
+			fwrite(node->key,sizeof(int),order-1,fp);
+			fwrite(node->child,sizeof(long),order,fp);
 		}
 		while(fgets(line,LINE_MAX,stdin)!=NULL){
 			memset(temp,0,LINE_MAX);
