@@ -192,13 +192,20 @@ returnNode addNode(FILE *fp,int order,int key,int offset){
 			btree_node *newNode = makeNode(order);
 			k=0;
 			newNode->n = node->n + 1;
-			for(i=0;i<=newNode->n;i++){
+			for(k=0;k<i;k++){
+				newNode->key[k] = node->key[k];
+			}
+			newNode->key[i] = key;
+			for(k=i+1;k<order-1;k++){
+				newNode->key[k] = node->key[k-1];
+			}
+			/*for(i=0;i<=newNode->n;i++){
 				if(node->key[i]<key){
 					newNode->key[k++] = node->key[i]; 
 				} else {
 					newNode->key[k++] = key;
 				}
-			}
+			}*/
 			returnNode temp;
 			temp.isValid = -1 ; // invalidate return object
 			//overwrite node to current nodes offset
